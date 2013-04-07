@@ -1,0 +1,32 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sukiNES", "sukiNES\sukiNES.vcxproj", "{503663F5-AAB4-4E84-AF60-EF96D3C7E979}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libsukiNES", "libsukiNES\libsukiNES.vcxproj", "{292C250A-C2FC-4E1F-8920-47804F6DA989}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sukiNES_StressTest", "sukiNES_StressTest\sukiNES_StressTest.vcxproj", "{1EA0B2F2-D91D-4E84-8295-E56876D2111B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{503663F5-AAB4-4E84-AF60-EF96D3C7E979}.Debug|Win32.ActiveCfg = Debug|Win32
+		{503663F5-AAB4-4E84-AF60-EF96D3C7E979}.Debug|Win32.Build.0 = Debug|Win32
+		{503663F5-AAB4-4E84-AF60-EF96D3C7E979}.Release|Win32.ActiveCfg = Release|Win32
+		{503663F5-AAB4-4E84-AF60-EF96D3C7E979}.Release|Win32.Build.0 = Release|Win32
+		{292C250A-C2FC-4E1F-8920-47804F6DA989}.Debug|Win32.ActiveCfg = Debug|Win32
+		{292C250A-C2FC-4E1F-8920-47804F6DA989}.Debug|Win32.Build.0 = Debug|Win32
+		{292C250A-C2FC-4E1F-8920-47804F6DA989}.Release|Win32.ActiveCfg = Release|Win32
+		{292C250A-C2FC-4E1F-8920-47804F6DA989}.Release|Win32.Build.0 = Release|Win32
+		{1EA0B2F2-D91D-4E84-8295-E56876D2111B}.Debug|Win32.ActiveCfg = Debug|Win32
+		{1EA0B2F2-D91D-4E84-8295-E56876D2111B}.Debug|Win32.Build.0 = Debug|Win32
+		{1EA0B2F2-D91D-4E84-8295-E56876D2111B}.Release|Win32.ActiveCfg = Release|Win32
+		{1EA0B2F2-D91D-4E84-8295-E56876D2111B}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
