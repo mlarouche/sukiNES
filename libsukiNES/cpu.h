@@ -1,5 +1,7 @@
 #pragma once
 
+#include <functional>
+
 namespace sukiNES
 {
 	struct CpuRegisters
@@ -54,13 +56,36 @@ namespace sukiNES
 
 		void executeOpcode();
 
+		void push(byte value);
+		void push(word value);
+
 		CpuRegisters getRegisters() const
 		{
 			return _registers;
 		}
 
+		template<int>
+		friend struct Register;
+
+		template<class Address>
+		friend struct ToAddress;
+
+		friend struct NextByte;
+		friend struct NextWord;
+
+	private:
+		template<byte Opcode, class Instruction>
+		void registerOpcode()
+		{
+			_instructions[Opcode] = std::function<void(Cpu*)>(&Instruction::execute);
+		}
+
+		void _setupInstructions();
+
 	private:
 		CpuRegisters _registers;
 		IMemory* _memory;
+
+		std::function<void(Cpu*)> _instructions[256];
 	};
 }

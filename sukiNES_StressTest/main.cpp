@@ -51,11 +51,17 @@ public:
 	: _failureMessage(nullptr)
 	, _currentLine(1)
 	{
+		// Setup MainMemory
+		_memory.setGamepakMemory(&_gamePak);
+
+		// Setup memory in CPU
 		_cpu.setMainMemory(&_memory);
 
 		// Set initial state of the CPU
 		_cpu.setProgramCounter(0xC000);
 		_cpu.disableInterrupt();
+		_cpu.push(0x00);
+		_cpu.push(0x00);
 	}
 
 	~NesStressTest()

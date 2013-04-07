@@ -3,6 +3,7 @@
 namespace sukiNES
 {
 	static const uint32 GamePakBaseAddress = 0x8000;
+
 	GamePak::GamePak()
 	: _chrBank(nullptr)
 	, _mirroring(MirroringType::Horizontal)
@@ -22,19 +23,23 @@ namespace sukiNES
 
 		if ( (romData.size() / RomBankSize) == 1)
 		{
-			_romBank[0] = romData.get();
-			_romBank[1] = romData.get();
+			_romBank[0] = _romData.get();
+			_romBank[1] = _romData.get();
 		}
 		else
 		{
-			_romBank[0] = romData.get();
-			_romBank[1] = romData.get() + RomBankSize;
+			_romBank[0] = _romData.get();
+			_romBank[1] = _romData.get() + RomBankSize;
 		}
 	}
 
 	byte GamePak::read(word address)
 	{
-		return 0;
+		uint32 relativeAddress = static_cast<uint32>(address) % GamePakBaseAddress;
+
+		uint32 bankToUse = (relativeAddress >= RomBankSize) ? 1 : 0;
+
+		return _romBank[bankToUse][relativeAddress % RomBankSize];
 	}
 
 	void GamePak::write(word address, byte value)
