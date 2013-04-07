@@ -6,3 +6,5 @@
 /Debug
 /sukiNES/Debug
 /sukiNES_StressTest/Debug
+
+/sukiNES_StressTest/*.user

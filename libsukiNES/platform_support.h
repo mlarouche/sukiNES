@@ -205,6 +205,11 @@ public:
 		return *this;
 	}
 
+	bool operator!=(const ManagedWord& other)
+	{
+		return m_impl.Word != other.m_impl.Word;
+	}
+
 private:
 	// An union represent a single value in memory.
 	// The Byte and Word contain the same value
@@ -224,3 +229,21 @@ private:
 };
 
 typedef ManagedWord word;
+
+// From bisqwit nesemu1
+template<unsigned bit, unsigned nbits=1, typename T=u8>
+struct RegBit
+{
+	T data;
+	enum { mask = (1u << nbits) - 1u };
+	template<typename T2>
+	RegBit& operator=(T2 val)
+	{
+		data = (data & ~(mask << bit)) | ((nbits > 1 ? val & mask : !!val) << bit);
+		return *this;
+	}
+
+	operator unsigned() const { return (data >> bit) & mask; }
+	RegBit& operator++() { return *this = *this + 1; }
+	unsigned operator++(int) { unsigned r = *this; ++*this; return r; }
+};
