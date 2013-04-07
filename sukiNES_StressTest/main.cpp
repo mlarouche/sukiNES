@@ -7,6 +7,9 @@
 
 // sukiNES includes
 #include <cpu.h>
+#include <gamepak.h>
+#include <mainmemory.h>
+#include <inesreader.h>
 
 #ifdef SUKINES_PLATFORM_WINDOWS
 #include <windows.h>
@@ -15,17 +18,30 @@
 static const char* LogFilename = "nestest.log";
 static const char* RomFilename = "nestest.nes";
 
+#ifdef SUKINES_PLATFORM_WINDOWS
 void showpause()
 {
 	system("pause");
 }
+#endif
 
 #ifdef SUKINES_PLATFORM_WINDOWS
-#define generateFailureMessage(message, actual, expected) \
-	if (IsDebuggerPresent()) __debugbreak(); \
-	_generateFailureMessage(message, actual, expected)
+#define assertIsEqual(actual, expected, message) \
+	do { \
+		if ( actual != expected ) { \
+			if (IsDebuggerPresent()) ForceBreakpoint(); \
+			_generateFailureMessage(message, actual, expected); \
+			return false; \
+		} \
+	} while(0)
 #else
-#define generateFailureMessage(message, actual, expected) _generateFailureMessage(message, actual, expected)
+#define assertIsEqual(actual, expected, message) \
+	do { \
+		if ( actual != expected ) { \
+			_generateFailureMessage(message, actual, expected); \
+			return false; \
+		}
+	} while(0)
 #endif
 
 class NesStressTest
@@ -35,6 +51,11 @@ public:
 	: _failureMessage(nullptr)
 	, _currentLine(1)
 	{
+		_cpu.setMainMemory(&_memory);
+
+		// Set initial state of the CPU
+		_cpu.setProgramCounter(0xC000);
+		_cpu.disableInterrupt();
 	}
 
 	~NesStressTest()
@@ -47,10 +68,25 @@ public:
 
 	bool run()
 	{
+		// Read ROM
+		sukiNES::iNESReader nesReader;
+		nesReader.setGamePak(&_gamePak);
+
+		if (!nesReader.read(RomFilename))
+		{
+			_generateFailureMessage("Cannot open NES file %s", RomFilename);
+			return false;
+		}
+
+		assertIsEqual(_gamePak.mapper(), 0, "Mapper not equal");
+		assertIsEqual(_gamePak.romPageCount(), 1, "ROM page count not equal");
+		assertIsEqual(_gamePak.chrPageCount(), 1, "CHR page count not equal");
+
+		// Read log file
 		std::ifstream logFile(LogFilename);
 		if(!logFile)
 		{
-			std::cerr << "Cannot open log file " << LogFilename << std::endl;
+			_generateFailureMessage("Cannot open log file %s", LogFilename);
 			return false;
 		}
 
@@ -60,47 +96,20 @@ public:
 			decodeLine();
 
 			// Check program counter before executing the opcode
-			auto currentRegisters = cpu.getRegisters();
-			if(currentRegisters.ProgramCounter != _expectedRegisters.ProgramCounter)
-			{
-				generateFailureMessage("Program counter not equal: actual=%#X, expected=%#X", currentRegisters.ProgramCounter, _expectedRegisters.ProgramCounter);
-				return false;
-			}
+			auto currentRegisters = _cpu.getRegisters();
 
-			cpu.executeOpcode();
+			assertIsEqual(currentRegisters.ProgramCounter, _expectedRegisters.ProgramCounter, "Program counter not equal");
+
+			_cpu.executeOpcode();
 
 			// Check all the other CPU registers
-			currentRegisters = cpu.getRegisters();
+			currentRegisters = _cpu.getRegisters();
 
-			if(currentRegisters.A != _expectedRegisters.A)
-			{
-				generateFailureMessage("A not equal: actual=%#X, expected=%#X", currentRegisters.A, _expectedRegisters.A);
-				return false;
-			}
-
-			if(currentRegisters.X != _expectedRegisters.X)
-			{
-				generateFailureMessage("X not equal: actual=%#X, expected=%#X", currentRegisters.X, _expectedRegisters.X);
-				return false;
-			}
-
-			if(currentRegisters.Y != _expectedRegisters.Y)
-			{
-				generateFailureMessage("Y not equal: actual=%#X, expected=%#X", currentRegisters.Y, _expectedRegisters.Y);
-				return false;
-			}
-
-			if(currentRegisters.ProcessorStatus.raw != _expectedRegisters.ProcessorStatus.raw)
-			{
-				generateFailureMessage("Processor Status not equal: actual=%#X, expected=%#X", currentRegisters.ProcessorStatus.raw, _expectedRegisters.ProcessorStatus.raw);
-				return false;
-			}
-
-			if(currentRegisters.StackPointer != _expectedRegisters.StackPointer)
-			{
-				generateFailureMessage("Stack Pointer not equal: actual=%#X, expected=%#X", currentRegisters.StackPointer, _expectedRegisters.StackPointer);
-				return false;
-			}
+			assertIsEqual(currentRegisters.A, _expectedRegisters.A, "A not equal");
+			assertIsEqual(currentRegisters.X, _expectedRegisters.X, "X not equal");
+			assertIsEqual(currentRegisters.Y, _expectedRegisters.Y, "Y not equal");
+			assertIsEqual(currentRegisters.ProcessorStatus.raw, _expectedRegisters.ProcessorStatus.raw, "Processor Status not equal");
+			assertIsEqual(currentRegisters.StackPointer, _expectedRegisters.StackPointer, "Stack pointer not equal");
 
 			_currentLine++;
 		}
@@ -112,11 +121,19 @@ public:
 	{
 		if(_failureMessage)
 		{
-			fprintf(stderr, "FAILURE: %s\nAt line %d: %s\n", _failureMessage, _currentLine, _lineBuffer.c_str());
+			fprintf(stderr, "FAILURE: %s\n", _failureMessage);
+			if (!_lineBuffer.empty())
+			{
+				fprintf(stderr, "At line %d: %s\n", _currentLine, _lineBuffer.c_str());
+			}
 		}
 		else
 		{
-			fprintf(stderr, "FAILURE !\nAt line %d: %s\n", _currentLine, _lineBuffer.c_str());
+			fprintf(stderr, "FAILURE !\n");
+			if (!_lineBuffer.empty())
+			{
+				fprintf(stderr, "At line %d: %s\n", _currentLine, _lineBuffer.c_str());
+			}
 		}
 	}
 
@@ -185,8 +202,23 @@ private:
 		return result;
 	}
 
+	template<typename T1>
+	void _generateFailureMessage(const char* message, T1 filename)
+	{
+		_allocateFailureMessage();
+
+		sprintf(_failureMessage, message, filename);
+	}
+
 	template<typename T1, typename T2>
 	void _generateFailureMessage(const char* message, T1 actual, T2 expected)
+	{
+		_allocateFailureMessage();
+
+		sprintf(_failureMessage, "%s: actual=%#X, expected=%#X", message, actual, expected);
+	}
+
+	void _allocateFailureMessage()
 	{
 		if(_failureMessage)
 		{
@@ -194,12 +226,13 @@ private:
 			_failureMessage = nullptr;
 		}
 
-		_failureMessage = new char[1024];
-		sprintf(_failureMessage, message, actual, expected);
+		_failureMessage = new char[SUKINES_KB(2)];
 	}
 
 private:
-	sukiNES::Cpu cpu;
+	sukiNES::Cpu _cpu;
+	sukiNES::MainMemory _memory;
+	sukiNES::GamePak _gamePak;
 
 	char* _failureMessage;
 	std::string _lineBuffer;
@@ -209,7 +242,9 @@ private:
 
 int main(int argc, char** argv)
 {
+#ifdef SUKINES_PLATFORM_WINDOWS
 	atexit(showpause);
+#endif
 
 	NesStressTest stressTest;
 

@@ -11,11 +11,22 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="assert.h" />
     <ClInclude Include="cpu.h" />
+    <ClInclude Include="gamepak.h" />
+    <ClInclude Include="inesreader.h" />
+    <ClInclude Include="mainmemory.h" />
+    <ClInclude Include="memory.h" />
     <ClInclude Include="platform_support.h" />
+    <ClInclude Include="types.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="assert.cpp" />
     <ClCompile Include="cpu.cpp" />
+    <ClCompile Include="gamepak.cpp" />
+    <ClCompile Include="inesreader.cpp" />
+    <ClCompile Include="mainmemory.cpp" />
+    <ClCompile Include="types.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{292C250A-C2FC-4E1F-8920-47804F6DA989}</ProjectGuid>

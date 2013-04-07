@@ -6,6 +6,7 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <ForcedIncludeFiles>$(SolutionDir)\libsukiNES\platform_support.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup />

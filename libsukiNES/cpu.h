@@ -17,16 +17,40 @@ namespace sukiNES
 			RegBit<1> Zero;
 			RegBit<2> InterruptDisabled;
 			RegBit<3> Decimal;
+			RegBit<4> Break;
+			RegBit<5> Unused;
 			RegBit<6> Overflow;
 			RegBit<7> Negative;
 		} ProcessorStatus;
 	};
+
+	class IMemory;
 
 	class Cpu
 	{
 	public:
 		Cpu();
 		~Cpu();
+
+		void setMainMemory(IMemory* memory)
+		{
+			_memory = memory;
+		}
+
+		void setProgramCounter(word address)
+		{
+			_registers.ProgramCounter = address;
+		}
+
+		void disableInterrupt()
+		{
+			_registers.ProcessorStatus.InterruptDisabled = true;
+		}
+
+		void enableInterrupt()
+		{
+			_registers.ProcessorStatus.InterruptDisabled = false;
+		}
 
 		void executeOpcode();
 
@@ -37,5 +61,6 @@ namespace sukiNES
 
 	private:
 		CpuRegisters _registers;
+		IMemory* _memory;
 	};
 }
