@@ -76,9 +76,6 @@ namespace sukiNES
 		template<class Address>
 		friend struct RelativeAddress;
 
-		template<class Source, class Destination>
-		friend struct Load;
-
 		template<class A, class B>
 		friend struct JSR;
 

@@ -16,6 +16,11 @@ namespace sukiNES
 		return (value & SUKINES_BIT(7)) ? true : false;
 	}
 
+	inline int TestOverflow(int value)
+	{
+		return (value < -127 || value > 127) ? true : false;
+	}
+
 	enum CpuFlags
 	{
 		Carry = 0,
@@ -117,7 +122,7 @@ namespace sukiNES
 	{
 		static inline byte read(Cpu* cpu)
 		{
-			cpu->_memory->read(Address::read(cpu));
+			return cpu->_memory->read(Address::read(cpu));
 		}
 
 		static inline void write(Cpu* cpu, byte value)
@@ -246,6 +251,16 @@ namespace sukiNES
 	{
 	};
 
+	template<class A, class B>
+	struct BVS: public JumpImplementation<FlagTest<Overflow,1>, A, B>
+	{
+	};
+
+	template<class A, class B>
+	struct BVC: public JumpImplementation<FlagTest<Overflow,0>, A, B>
+	{
+	};
+
 	template<class Source, class Destination>
 	struct Load
 	{
@@ -255,8 +270,8 @@ namespace sukiNES
 
 			Destination::write(cpu, value);
 
-			cpu->_registers.ProcessorStatus.Zero = TestZero(value);
-			cpu->_registers.ProcessorStatus.Negative = TestNegative(value);
+			Flag<Zero>::write(cpu, TestZero(value));
+			Flag<Negative>::write(cpu, TestNegative(value));
 		}
 	};
 
@@ -288,6 +303,20 @@ namespace sukiNES
 	{
 		static inline void execute(Cpu* cpu)
 		{
+		}
+	};
+
+	template<class MemorySource, class B>
+	struct BIT
+	{
+		static inline void execute(Cpu* cpu)
+		{
+			byte readValue = MemorySource::read(cpu);
+			int test = Register<A>::read(cpu) & readValue;
+
+			Flag<Zero>::write(cpu, TestZero(test));
+			Flag<Negative>::write(cpu, TestNegative(test));
+			Flag<Overflow>::write(cpu, TestOverflow(test));
 		}
 	};
 
@@ -345,19 +374,24 @@ namespace sukiNES
 		registerOpcode< 0x20, Instruction<JSR, NextWord, void> >();
 		registerOpcode< 0x4C, Instruction<JMP, NextWord, void> >();
 
+		registerOpcode< 0x50, Instruction<BVC, RelativeAddress<NextByte>, void> >();
+		registerOpcode< 0x70, Instruction<BVS, RelativeAddress<NextByte>, void> >();
 		registerOpcode< 0x90, Instruction<BCC, RelativeAddress<NextByte>, void> >();
 		registerOpcode< 0xB0, Instruction<BCS, RelativeAddress<NextByte>, void> >();
-		registerOpcode< 0xF0, Instruction<BEQ, RelativeAddress<NextByte>, void> >();
 		registerOpcode< 0xD0, Instruction<BNE, RelativeAddress<NextByte>, void> >();
+		registerOpcode< 0xF0, Instruction<BEQ, RelativeAddress<NextByte>, void> >();
 
 		registerOpcode< 0xA2, Instruction<Load, NextByte, Register<X>> >();
 		registerOpcode< 0xA9, Instruction<Load, NextByte, Register<A>> >();
 
+		registerOpcode< 0x85, Instruction<Store, Register<A>, ToAddress<NextByte>> >();
 		registerOpcode< 0x86, Instruction<Store, Register<X>, ToAddress<NextByte>> >();
 
 		registerOpcode< 0xEA, Instruction<NOP, void, void> >();
 
 		registerOpcode< 0x38, Instruction<SetFlag, Flag<Carry>, void> >();
 		registerOpcode< 0x18, Instruction<ClearFlag, Flag<Carry>, void> >();
+
+		registerOpcode< 0x24, Instruction<BIT, ToAddress<NextByte>, void> >();
 	}
 }
