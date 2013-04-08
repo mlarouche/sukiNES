@@ -65,10 +65,22 @@ namespace sukiNES
 		}
 
 		template<int>
+		friend struct Flag;
+
+		template<int>
 		friend struct Register;
 
 		template<class Address>
 		friend struct ToAddress;
+
+		template<class Address>
+		friend struct RelativeAddress;
+
+		template<class Source, class Destination>
+		friend struct Load;
+
+		template<class A, class B>
+		friend struct JSR;
 
 		friend struct NextByte;
 		friend struct NextWord;

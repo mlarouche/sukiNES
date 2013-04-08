@@ -118,18 +118,9 @@ public:
 	 * @brief Convert word to unsigned int
 	 * @return unsigned int
 	 */
-	inline operator unsigned int()
+	inline operator int()
 	{
 		return static_cast<int>(m_impl.Word);
-	}
-
-	/**
-	 * @brief Convert word to byte (with loss of information)
-	 * @return byte
-	 */
-	inline operator byte()
-	{
-		return static_cast<byte>(m_impl.Word);
 	}
 
 	/**

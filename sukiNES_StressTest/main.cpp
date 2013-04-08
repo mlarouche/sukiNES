@@ -101,21 +101,17 @@ public:
 			std::getline(logFile, _lineBuffer);
 			decodeLine();
 
-			// Check program counter before executing the opcode
+			// Check all CPU registers
 			auto currentRegisters = _cpu.getRegisters();
 
 			assertIsEqual(currentRegisters.ProgramCounter, _expectedRegisters.ProgramCounter, "Program counter not equal");
-
-			_cpu.executeOpcode();
-
-			// Check all the other CPU registers
-			currentRegisters = _cpu.getRegisters();
-
 			assertIsEqual(currentRegisters.A, _expectedRegisters.A, "A not equal");
 			assertIsEqual(currentRegisters.X, _expectedRegisters.X, "X not equal");
 			assertIsEqual(currentRegisters.Y, _expectedRegisters.Y, "Y not equal");
 			assertIsEqual(currentRegisters.ProcessorStatus.raw, _expectedRegisters.ProcessorStatus.raw, "Processor Status not equal");
 			assertIsEqual(currentRegisters.StackPointer, _expectedRegisters.StackPointer, "Stack pointer not equal");
+
+			_cpu.executeOpcode();
 
 			_currentLine++;
 		}
