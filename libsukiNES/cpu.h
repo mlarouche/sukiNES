@@ -59,6 +59,9 @@ namespace sukiNES
 		void push(byte value);
 		void push(word value);
 
+		byte popByte();
+		word popWord();
+
 		CpuRegisters getRegisters() const
 		{
 			return _registers;

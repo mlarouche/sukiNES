@@ -13,12 +13,12 @@ namespace sukiNES
 
 	inline int TestNegative(byte value)
 	{
-		return (value & SUKINES_BIT(7)) ? true : false;
+		return (value & SUKINES_BIT(7));
 	}
 
 	inline int TestOverflow(int value)
 	{
-		return (value < -127 || value > 127) ? true : false;
+		return (value & 0x40);
 	}
 
 	enum CpuFlags
@@ -45,11 +45,11 @@ namespace sukiNES
 		{
 			switch(value)
 			{
-			case 1:
-				cpu->_registers.ProcessorStatus.raw |= SUKINES_BIT(FlagBit);
-				break;
 			case 0:
 				cpu->_registers.ProcessorStatus.raw &= ~SUKINES_BIT(FlagBit);
+				break;
+			default:
+				cpu->_registers.ProcessorStatus.raw |= SUKINES_BIT(FlagBit);
 				break;
 			}
 		}
@@ -59,7 +59,8 @@ namespace sukiNES
 	{
 		A,
 		X,
-		Y
+		Y,
+		ProcessorStatus
 	};
 
 	template<int Reg>
@@ -114,6 +115,20 @@ namespace sukiNES
 		static inline void write(Cpu* cpu, byte value)
 		{
 			cpu->_registers.Y = value;
+		}
+	};
+
+	template<>
+	struct Register<ProcessorStatus>
+	{
+		static inline byte read(Cpu* cpu)
+		{
+			return cpu->_registers.ProcessorStatus.raw;
+		}
+
+		static inline void write(Cpu* cpu, byte value)
+		{
+			cpu->_registers.ProcessorStatus.raw = value;
 		}
 	};
 
@@ -222,12 +237,18 @@ namespace sukiNES
 		static inline void execute(Cpu* cpu)
 		{
 			word jumpAddress = A::read(cpu);
-			if (AlwaysTrue::execute(cpu))
-			{
-				cpu->push(cpu->_registers.ProgramCounter);
+			cpu->push(cpu->_registers.ProgramCounter);
 
-				cpu->setProgramCounter(static_cast<uint32>(jumpAddress) - 1);
-			}
+			cpu->setProgramCounter(static_cast<uint32>(jumpAddress) - 1);
+		}
+	};
+
+	template<class A, class B>
+	struct RTS
+	{
+		static inline void execute(Cpu* cpu)
+		{
+			cpu->setProgramCounter( cpu->popWord() );
 		}
 	};
 	
@@ -261,6 +282,16 @@ namespace sukiNES
 	{
 	};
 
+	template<class A, class B>
+	struct BPL: public JumpImplementation<FlagTest<Negative,0>, A, B>
+	{
+	};
+
+	template<class A, class B>
+	struct BMI: public JumpImplementation<FlagTest<Negative,1>, A, B>
+	{
+	};
+
 	template<class Source, class Destination>
 	struct Load
 	{
@@ -276,8 +307,63 @@ namespace sukiNES
 	};
 
 	template<class Source, class Destination>
-	struct Store : public Load<Source, Destination>
+	struct Store
 	{
+		static inline void execute(Cpu* cpu)
+		{
+			byte value = Source::read(cpu);
+
+			Destination::write(cpu, value);
+		}
+	};
+
+	template<class Source, class B>
+	struct Push
+	{
+		static inline void execute(Cpu* cpu)
+		{
+			cpu->push(Source::read(cpu));
+		}
+	};
+
+	template<>
+	struct Push<Register<ProcessorStatus>, void>
+	{
+		static inline void execute(Cpu* cpu)
+		{
+			byte readValue = Register<ProcessorStatus>::read(cpu);
+			readValue |= SUKINES_BIT(Break);
+
+			cpu->push(readValue);
+		}
+	};
+
+	template<class Destination, class B>
+	struct Pop
+	{
+		static inline void execute(Cpu* cpu)
+		{
+			byte poppedValue = cpu->popByte();
+
+			Destination::write(cpu, poppedValue);
+
+			Flag<Zero>::write(cpu, TestZero(poppedValue));
+			Flag<Negative>::write(cpu, TestNegative(poppedValue));
+		}
+	};
+
+	template<>
+	struct Pop<Register<ProcessorStatus>, void>
+	{
+		static inline void execute(Cpu* cpu)
+		{
+			byte poppedValue = cpu->popByte();
+
+			Register<ProcessorStatus>::write(cpu, poppedValue);
+
+			Flag<Unused>::write(cpu, 1);
+			Flag<Break>::write(cpu, 0);
+		}
 	};
 
 	template<class A, class B>
@@ -315,8 +401,75 @@ namespace sukiNES
 			int test = Register<A>::read(cpu) & readValue;
 
 			Flag<Zero>::write(cpu, TestZero(test));
-			Flag<Negative>::write(cpu, TestNegative(test));
-			Flag<Overflow>::write(cpu, TestOverflow(test));
+			Flag<Negative>::write(cpu, TestNegative(readValue));
+			Flag<Overflow>::write(cpu, TestOverflow(readValue));
+		}
+	};
+
+	template<class A, class B>
+	struct AND
+	{
+		static inline void execute(Cpu* cpu)
+		{
+			byte a = A::read(cpu);
+			byte b = B::read(cpu);
+
+			byte result = a & b;
+
+			Flag<Zero>::write(cpu, TestZero(result));
+			Flag<Negative>::write(cpu, TestNegative(result));
+
+			A::write(cpu, result);
+		}
+	};
+
+	template<class A, class B>
+	struct OR
+	{
+		static inline void execute(Cpu* cpu)
+		{
+			byte a = A::read(cpu);
+			byte b = B::read(cpu);
+
+			byte result = a | b;
+
+			Flag<Zero>::write(cpu, TestZero(result));
+			Flag<Negative>::write(cpu, TestNegative(result));
+
+			A::write(cpu, result);
+		}
+	};
+
+	template<class A, class B>
+	struct EOR
+	{
+		static inline void execute(Cpu* cpu)
+		{
+			byte a = A::read(cpu);
+			byte b = B::read(cpu);
+
+			byte result = a ^ b;
+
+			Flag<Zero>::write(cpu, TestZero(result));
+			Flag<Negative>::write(cpu, TestNegative(result));
+
+			A::write(cpu, result);
+		}
+	};
+
+	template<class A, class B>
+	struct CMP
+	{
+		static inline void execute(Cpu* cpu)
+		{
+			byte a = A::read(cpu);
+			byte b = B::read(cpu);
+
+			int result = static_cast<int>(a) - static_cast<int>(b);
+
+			Flag<Zero>::write(cpu, TestZero(result));
+			Flag<Negative>::write(cpu, TestNegative(result));
+			Flag<Carry>::write(cpu, (result >= 0) ? 1 : 0);
 		}
 	};
 
@@ -369,11 +522,36 @@ namespace sukiNES
 		push(value.highByte());
 	}
 
+	byte Cpu::popByte()
+	{
+		_registers.StackPointer++;
+
+		word stackAddress;
+		stackAddress.setHighByte(0x1);
+		stackAddress.setLowByte( _registers.StackPointer);
+
+		return _memory->read(stackAddress);
+	}
+
+	word Cpu::popWord()
+	{
+		word poppedValue;
+
+		poppedValue.setHighByte( popByte() );
+		poppedValue.setLowByte( popByte() );
+
+		return poppedValue;
+	}
+
 	void Cpu::_setupInstructions()
 	{
 		registerOpcode< 0x20, Instruction<JSR, NextWord, void> >();
+		registerOpcode< 0x60, Instruction<RTS, void, void> >();
+
 		registerOpcode< 0x4C, Instruction<JMP, NextWord, void> >();
 
+		registerOpcode< 0x10, Instruction<BPL, RelativeAddress<NextByte>, void> >();
+		registerOpcode< 0x30, Instruction<BMI, RelativeAddress<NextByte>, void> >();
 		registerOpcode< 0x50, Instruction<BVC, RelativeAddress<NextByte>, void> >();
 		registerOpcode< 0x70, Instruction<BVS, RelativeAddress<NextByte>, void> >();
 		registerOpcode< 0x90, Instruction<BCC, RelativeAddress<NextByte>, void> >();
@@ -390,8 +568,25 @@ namespace sukiNES
 		registerOpcode< 0xEA, Instruction<NOP, void, void> >();
 
 		registerOpcode< 0x38, Instruction<SetFlag, Flag<Carry>, void> >();
+		registerOpcode< 0x78, Instruction<SetFlag, Flag<InterruptDisabled>, void> >();
+		registerOpcode< 0xF8, Instruction<SetFlag, Flag<Decimal>, void> >();
+
 		registerOpcode< 0x18, Instruction<ClearFlag, Flag<Carry>, void> >();
+		registerOpcode< 0xB8, Instruction<ClearFlag, Flag<Overflow>, void> >();
+		registerOpcode< 0xD8, Instruction<ClearFlag, Flag<Decimal>, void> >();
 
 		registerOpcode< 0x24, Instruction<BIT, ToAddress<NextByte>, void> >();
+
+		registerOpcode< 0x08, Instruction<Push, Register<ProcessorStatus>, void> >();
+		registerOpcode< 0x48, Instruction<Push, Register<A>, void> >();
+
+		registerOpcode< 0x28, Instruction<Pop, Register<ProcessorStatus>, void> >();
+		registerOpcode< 0x68, Instruction<Pop, Register<A>, void> >();
+
+		registerOpcode< 0x09, Instruction<OR, Register<A>, NextByte> >();
+		registerOpcode< 0x29, Instruction<AND, Register<A>, NextByte> >();
+		registerOpcode< 0x49, Instruction<EOR, Register<A>, NextByte> >();
+
+		registerOpcode< 0xC9, Instruction<CMP, Register<A>, NextByte> >();
 	}
 }
