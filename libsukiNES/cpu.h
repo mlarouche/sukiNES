@@ -77,7 +77,13 @@ namespace sukiNES
 		friend struct ToAddress;
 
 		template<class Address>
+		friend struct ToAddressReadWrite;
+
+		template<class Address>
 		friend struct RelativeAddress;
+
+		template<class Address>
+		friend struct IndirectXAddress;
 
 		template<class A, class B>
 		friend struct JSR;

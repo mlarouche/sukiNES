@@ -14,6 +14,8 @@ namespace sukiNES
 	, _inputMemory(nullptr)
 	, _gamepakMemory(nullptr)
 	{
+		memset(_ram, 0, RamSize);
+		memset(_sram, 0, RamSize);
 	}
 
 	MainMemory::~MainMemory()
