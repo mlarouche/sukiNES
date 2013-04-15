@@ -187,6 +187,11 @@ public:
 
 	friend bool operator<=(const ManagedWord& left, int right);
 
+	void operator+=(int right)
+	{
+		m_impl.Word += static_cast<uint16>(right);
+	}
+
 private:
 	// An union represent a single value in memory.
 	// The Byte and Word contain the same value
