@@ -229,23 +229,23 @@ namespace sukiNES
 	{
 	};
 
-	template<class Address>
+	template<class AddressSource>
 	struct RelativeAddress
 	{
 		static inline word read(Cpu* cpu)
 		{
-			offset relativeByte = static_cast<offset>(Address::read(cpu));
+			offset relativeByte = static_cast<offset>(AddressSource::read(cpu));
 
 			return static_cast<word>(cpu->_registers.ProgramCounter + relativeByte + 1);
 		}
 	};
 
-	template<class Address>
+	template<class AddressSource>
 	struct IndirectAbsoluteAddress
 	{
 		static inline word read(Cpu* cpu)
 		{
-			word absoluteAddress = Address::read(cpu);
+			word absoluteAddress = AddressSource::read(cpu);
 
 			byte lowByte = cpu->_memory->read(absoluteAddress);
 
@@ -261,12 +261,12 @@ namespace sukiNES
 		}
 	};
 
-	template<class Address>
+	template<class AddressSource>
 	struct IndirectXAddress
 	{
 		static inline byte read(Cpu* cpu)
 		{
-			byte zeroPageIndex = Address::read(cpu);
+			byte zeroPageIndex = AddressSource::read(cpu);
 			zeroPageIndex += Register<X>::read(cpu);
 
 			byte lowByte = cpu->_memory->read(word(zeroPageIndex));
@@ -281,7 +281,7 @@ namespace sukiNES
 
 		static inline void write(Cpu* cpu, byte value)
 		{
-			byte zeroPageIndex = Address::read(cpu);
+			byte zeroPageIndex = AddressSource::read(cpu);
 			zeroPageIndex += Register<X>::read(cpu);
 
 			byte lowByte = cpu->_memory->read(word(zeroPageIndex));
@@ -295,12 +295,12 @@ namespace sukiNES
 		}
 	};
 
-	template<class Address>
+	template<class AddressSource>
 	struct IndirectPlusYAddress
 	{
 		static inline byte read(Cpu* cpu)
 		{
-			byte zeroPageIndex = Address::read(cpu);
+			byte zeroPageIndex = AddressSource::read(cpu);
 	
 			byte lowByte = cpu->_memory->read(word(zeroPageIndex));
 			byte highByte = cpu->_memory->read(static_cast<byte>(zeroPageIndex + 1));
@@ -316,7 +316,7 @@ namespace sukiNES
 
 		static inline void write(Cpu* cpu, byte value)
 		{
-			byte zeroPageIndex = Address::read(cpu);
+			byte zeroPageIndex = AddressSource::read(cpu);
 	
 			byte lowByte = cpu->_memory->read(zeroPageIndex);
 			byte highByte = cpu->_memory->read(static_cast<byte>(zeroPageIndex + 1));
@@ -387,12 +387,12 @@ namespace sukiNES
 		}
 	};
 
-	template<class Test, class A, class B>
+	template<class Test, class Addressing, class B>
 	struct JumpImplementation
 	{
 		static inline void execute(Cpu* cpu)
 		{
-			word jumpAddress = A::read(cpu);
+			word jumpAddress = Addressing::read(cpu);
 			if (Test::execute(cpu))
 			{
 				cpu->setProgramCounter(static_cast<uint32>(jumpAddress) - 1);
@@ -418,17 +418,17 @@ namespace sukiNES
 		}
 	};
 
-	template<class A, class B>
-	struct JMP : public JumpImplementation<AlwaysTrue, A, B>
+	template<class Addressing, class B>
+	struct JMP : public JumpImplementation<AlwaysTrue, Addressing, B>
 	{
 	};
 
-	template<class A, class B>
+	template<class Addressing, class B>
 	struct JSR
 	{
 		static inline void execute(Cpu* cpu)
 		{
-			word jumpAddress = A::read(cpu);
+			word jumpAddress = Addressing::read(cpu);
 			cpu->push(cpu->_registers.ProgramCounter);
 
 			cpu->setProgramCounter(static_cast<uint32>(jumpAddress) - 1);
@@ -459,43 +459,43 @@ namespace sukiNES
 		}
 	};
 	
-	template<class A, class B>
-	struct BCS : public JumpImplementation<FlagTest<Carry,1>, A, B>
+	template<class Addressing, class B>
+	struct BCS : public JumpImplementation<FlagTest<Carry,1>, Addressing, B>
 	{
 	};
 
-	template<class A, class B>
-	struct BCC : public JumpImplementation<FlagTest<Carry,0>, A, B>
+	template<class Addressing, class B>
+	struct BCC : public JumpImplementation<FlagTest<Carry,0>, Addressing, B>
 	{
 	};
 
-	template<class A, class B>
-	struct BEQ : public JumpImplementation<FlagTest<Zero,1>, A, B>
+	template<class Addressing, class B>
+	struct BEQ : public JumpImplementation<FlagTest<Zero,1>, Addressing, B>
 	{
 	};
 
-	template<class A, class B>
-	struct BNE: public JumpImplementation<FlagTest<Zero,0>, A, B>
+	template<class Addressing, class B>
+	struct BNE: public JumpImplementation<FlagTest<Zero,0>, Addressing, B>
 	{
 	};
 
-	template<class A, class B>
-	struct BVS: public JumpImplementation<FlagTest<Overflow,1>, A, B>
+	template<class Addressing, class B>
+	struct BVS: public JumpImplementation<FlagTest<Overflow,1>, Addressing, B>
 	{
 	};
 
-	template<class A, class B>
-	struct BVC: public JumpImplementation<FlagTest<Overflow,0>, A, B>
+	template<class Addressing, class B>
+	struct BVC: public JumpImplementation<FlagTest<Overflow,0>, Addressing, B>
 	{
 	};
 
-	template<class A, class B>
-	struct BPL: public JumpImplementation<FlagTest<Negative,0>, A, B>
+	template<class Addressing, class B>
+	struct BPL: public JumpImplementation<FlagTest<Negative,0>, Addressing, B>
 	{
 	};
 
-	template<class A, class B>
-	struct BMI: public JumpImplementation<FlagTest<Negative,1>, A, B>
+	template<class Addressing, class B>
+	struct BMI: public JumpImplementation<FlagTest<Negative,1>, Addressing, B>
 	{
 	};
 
@@ -573,21 +573,21 @@ namespace sukiNES
 		}
 	};
 
-	template<class A, class B>
+	template<class Flag, class B>
 	struct SetFlag
 	{
 		static inline void execute(Cpu* cpu)
 		{
-			A::write(cpu, 1);
+			Flag::write(cpu, 1);
 		}
 	};
 
-	template<class A, class B>
+	template<class Flag, class B>
 	struct ClearFlag
 	{
 		static inline void execute(Cpu* cpu)
 		{
-			A::write(cpu, 0);
+			Flag::write(cpu, 0);
 		}
 	};
 
@@ -599,12 +599,12 @@ namespace sukiNES
 		}
 	};
 
-	template<class A>
-	struct NOP<A, void>
+	template<class Addressing>
+	struct NOP<Addressing, void>
 	{
 		static inline void execute(Cpu* cpu)
 		{
-			A::read(cpu);
+			Addressing::read(cpu);
 		}
 	};
 
@@ -617,12 +617,12 @@ namespace sukiNES
 	};
 
 
-	template<class MemorySource, class B>
+	template<class Addressing, class B>
 	struct BIT
 	{
 		static inline void execute(Cpu* cpu)
 		{
-			byte readValue = MemorySource::read(cpu);
+			byte readValue = Addressing::read(cpu);
 			int test = Register<A>::read(cpu) & readValue;
 
 			Flag<Zero>::write(cpu, TestZero(test));
@@ -740,47 +740,47 @@ namespace sukiNES
 		}
 	};
 
-	template<class A, class B>
+	template<class Addressing, class B>
 	struct Increment
 	{
 		static inline void execute(Cpu* cpu)
 		{
-			byte a = A::read(cpu);
+			byte a = Addressing::read(cpu);
 			a++;
 
 			Flag<Zero>::write(cpu, TestZero(a));
 			Flag<Negative>::write(cpu, TestNegative(a));
 
-			A::write(cpu, a);
+			Addressing::write(cpu, a);
 		}
 	};
 
-	template<class A, class B>
+	template<class Addressing, class B>
 	struct Decrement
 	{
 		static inline void execute(Cpu* cpu)
 		{
-			byte a = A::read(cpu);
+			byte a = Addressing::read(cpu);
 			a--;
 
 			Flag<Zero>::write(cpu, TestZero(a));
 			Flag<Negative>::write(cpu, TestNegative(a));
 
-			A::write(cpu, a);
+			Addressing::write(cpu, a);
 		}
 	};
 
-	template<class A, class B>
+	template<class Source, class Destination>
 	struct Transfer
 	{
 		static inline void execute(Cpu* cpu)
 		{
-			byte a = A::read(cpu);
+			byte a = Source::read(cpu);
 
 			Flag<Zero>::write(cpu, TestZero(a));
 			Flag<Negative>::write(cpu, TestNegative(a));
 
-			B::write(cpu, a);
+			Destination::write(cpu, a);
 		}
 	};
 
@@ -794,12 +794,12 @@ namespace sukiNES
 		}
 	};
 
-	template<class A, class B>
+	template<class Addressing, class B>
 	struct LSR
 	{
 		static inline void execute(Cpu* cpu)
 		{
-			byte a = A::read(cpu);
+			byte a = Addressing::read(cpu);
 			byte shiffedBit = a & SUKINES_BIT(0);
 
 			a = a >> 1;
@@ -808,16 +808,16 @@ namespace sukiNES
 			Flag<Carry>::write(cpu, shiffedBit);
 			Flag<Zero>::write(cpu, TestZero(a));
 
-			A::write(cpu, a);
+			Addressing::write(cpu, a);
 		}
 	};
 
-	template<class A, class B>
+	template<class Addressing, class B>
 	struct ASL
 	{
 		static inline void execute(Cpu* cpu)
 		{
-			byte a = A::read(cpu);
+			byte a = Addressing::read(cpu);
 			byte shiffedBit = a & SUKINES_BIT(7);
 
 			a = a << 1;
@@ -826,16 +826,16 @@ namespace sukiNES
 			Flag<Carry>::write(cpu, shiffedBit);
 			Flag<Zero>::write(cpu, TestZero(a));
 
-			A::write(cpu, a);
+			Addressing::write(cpu, a);
 		}
 	};
 
-	template<class A, class B>
+	template<class Addressing, class B>
 	struct ROL
 	{
 		static inline void execute(Cpu* cpu)
 		{
-			u16 temp = static_cast<u16>(A::read(cpu));
+			u16 temp = static_cast<u16>(Addressing::read(cpu));
 			temp <<= 1;
 			if(Flag<Carry>::read(cpu))
 			{
@@ -850,16 +850,16 @@ namespace sukiNES
 			Flag<Negative>::write(cpu, TestNegative(result));
 			Flag<Zero>::write(cpu, TestZero(result));
 
-			A::write(cpu, result);
+			Addressing::write(cpu, result);
 		}
 	};
 
-	template<class A, class B>
+	template<class Addressing, class B>
 	struct ROR
 	{
 		static inline void execute(Cpu* cpu)
 		{
-			u16 temp = static_cast<u16>(A::read(cpu));
+			u16 temp = static_cast<u16>(Addressing::read(cpu));
 			if(Flag<Carry>::read(cpu))
 			{
 				temp |= 0x100;
@@ -873,7 +873,7 @@ namespace sukiNES
 			Flag<Negative>::write(cpu, TestNegative(result));
 			Flag<Zero>::write(cpu, TestZero(result));
 
-			A::write(cpu, result);
+			Addressing::write(cpu, result);
 		}
 	};
 
