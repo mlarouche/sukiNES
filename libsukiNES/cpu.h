@@ -41,6 +41,11 @@ namespace sukiNES
 			_memory = memory;
 		}
 
+		word programCounter() const
+		{
+			return _registers.ProgramCounter;
+		}
+
 		void setProgramCounter(word address)
 		{
 			_registers.ProgramCounter = address;
@@ -75,15 +80,6 @@ namespace sukiNES
 
 		template<int>
 		friend struct Register;
-
-		template<class Address>
-		friend struct RelativeAddress;
-
-		template<class Address>
-		friend struct IndirectAbsoluteAddress;
-
-		template<class A, class B>
-		friend struct JSR;
 
 		friend struct NextByte;
 		friend struct NextWord;

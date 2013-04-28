@@ -236,7 +236,7 @@ namespace sukiNES
 		{
 			offset relativeByte = static_cast<offset>(AddressSource::read(cpu));
 
-			return static_cast<word>(cpu->_registers.ProgramCounter + relativeByte + 1);
+			return static_cast<word>(cpu->programCounter() + relativeByte + 1);
 		}
 	};
 
@@ -247,11 +247,11 @@ namespace sukiNES
 		{
 			word absoluteAddress = AddressSource::read(cpu);
 
-			byte lowByte = cpu->_memory->read(absoluteAddress);
+			byte lowByte = cpu->readMemory(absoluteAddress);
 
 			absoluteAddress.setLowByte(static_cast<byte>(absoluteAddress.lowByte() + 1));
 
-			byte highByte = cpu->_memory->read(absoluteAddress);
+			byte highByte = cpu->readMemory(absoluteAddress);
 
 			word readWord;
 			readWord.setLowByte(lowByte);
@@ -336,7 +336,7 @@ namespace sukiNES
 		static inline byte read(Cpu* cpu)
 		{
 			cpu->_registers.ProgramCounter++;
-			return cpu->_memory->read(cpu->_registers.ProgramCounter);
+			return cpu->readMemory(cpu->_registers.ProgramCounter);
 		}
 	};
 
@@ -344,8 +344,8 @@ namespace sukiNES
 	{
 		static inline word read(Cpu* cpu)
 		{
-			byte lowByte = cpu->_memory->read(++cpu->_registers.ProgramCounter);
-			byte highByte = cpu->_memory->read(++cpu->_registers.ProgramCounter);
+			byte lowByte = cpu->readMemory(++cpu->_registers.ProgramCounter);
+			byte highByte = cpu->readMemory(++cpu->_registers.ProgramCounter);
 
 			word readWord;
 			readWord.setLowByte(lowByte);
@@ -429,7 +429,7 @@ namespace sukiNES
 		static inline void execute(Cpu* cpu)
 		{
 			word jumpAddress = Addressing::read(cpu);
-			cpu->push(cpu->_registers.ProgramCounter);
+			cpu->push(cpu->programCounter());
 
 			cpu->setProgramCounter(static_cast<uint32>(jumpAddress) - 1);
 		}
@@ -1112,7 +1112,7 @@ namespace sukiNES
 		stackAdress.setHighByte(0x1);
 		stackAdress.setLowByte(_registers.StackPointer);
 
-		_memory->write(stackAdress, value);
+		writeMemory(stackAdress, value);
 
 		_registers.StackPointer--;
 	}
@@ -1131,7 +1131,7 @@ namespace sukiNES
 		stackAddress.setHighByte(0x1);
 		stackAddress.setLowByte(_registers.StackPointer);
 
-		return _memory->read(stackAddress);
+		return readMemory(stackAddress);
 	}
 
 	word Cpu::popWord()
