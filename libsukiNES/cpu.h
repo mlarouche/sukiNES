@@ -34,6 +34,8 @@ namespace sukiNES
 		Cpu();
 		~Cpu();
 
+		void executeOpcode();
+
 		void setMainMemory(IMemory* memory)
 		{
 			_memory = memory;
@@ -54,7 +56,8 @@ namespace sukiNES
 			_registers.ProcessorStatus.InterruptDisabled = false;
 		}
 
-		void executeOpcode();
+		byte readMemory(word address);
+		void writeMemory(word address, byte value);
 
 		void push(byte value);
 		void push(word value);
@@ -72,15 +75,6 @@ namespace sukiNES
 
 		template<int>
 		friend struct Register;
-
-		template<class Address>
-		friend struct ToAddress;
-
-		template<class Address, class Register>
-		friend struct ToAddressPlusRegister;
-
-		template<class Address>
-		friend struct ToAddressReadWrite;
 
 		template<class Address>
 		friend struct RelativeAddress;
