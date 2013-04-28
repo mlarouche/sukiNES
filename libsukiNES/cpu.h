@@ -82,12 +82,6 @@ namespace sukiNES
 		template<class Address>
 		friend struct IndirectAbsoluteAddress;
 
-		template<class Address>
-		friend struct IndirectXAddress;
-
-		template<class Address>
-		friend struct IndirectPlusYAddress;
-
 		template<class A, class B>
 		friend struct JSR;
 

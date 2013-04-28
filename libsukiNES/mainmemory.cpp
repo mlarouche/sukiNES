@@ -73,8 +73,9 @@ namespace sukiNES
 		}
 		else if (address >= 0x4000 && address < 0x4016)
 		{
-			sukiAssertWithMessage(_apuMemory, "Please set the APU memory access in main memory");
-			_apuMemory->write(address, value);
+			//sukiAssertWithMessage(_apuMemory, "Please set the APU memory access in main memory");
+			if (_apuMemory)
+				_apuMemory->write(address, value);
 		}
 		else if (address >= 0x4016 && address < 0x4016)
 		{

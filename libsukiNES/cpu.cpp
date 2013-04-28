@@ -261,49 +261,49 @@ namespace sukiNES
 		}
 	};
 
-	template<class AddressSource>
-	struct IndirectXAddress
+	template<class AddressSource, AddressBehavior Behavior = AddressBehavior::AlwaysRead>
+	struct IndirectXAddress : public AddressBehaviorImplementation<AddressSource, Behavior>
 	{
 		static inline byte read(Cpu* cpu)
 		{
-			byte zeroPageIndex = AddressSource::read(cpu);
+			byte zeroPageIndex = readAddress(cpu);
 			zeroPageIndex += Register<X>::read(cpu);
 
-			byte lowByte = cpu->_memory->read(word(zeroPageIndex));
-			byte highByte = cpu->_memory->read(static_cast<byte>(zeroPageIndex + 1));
+			byte lowByte = cpu->readMemory(word(zeroPageIndex));
+			byte highByte = cpu->readMemory(static_cast<byte>(zeroPageIndex + 1));
 
 			word resultAddress;
 			resultAddress.setLowByte(lowByte);
 			resultAddress.setHighByte(highByte);
 
-			return cpu->_memory->read(resultAddress);
+			return cpu->readMemory(resultAddress);
 		}
 
 		static inline void write(Cpu* cpu, byte value)
 		{
-			byte zeroPageIndex = AddressSource::read(cpu);
+			byte zeroPageIndex = writeAddress(cpu);
 			zeroPageIndex += Register<X>::read(cpu);
 
-			byte lowByte = cpu->_memory->read(word(zeroPageIndex));
-			byte highByte = cpu->_memory->read(static_cast<byte>(zeroPageIndex + 1));
+			byte lowByte = cpu->readMemory(word(zeroPageIndex));
+			byte highByte = cpu->readMemory(static_cast<byte>(zeroPageIndex + 1));
 
 			word resultAddress;
 			resultAddress.setLowByte(lowByte);
 			resultAddress.setHighByte(highByte);
 
-			cpu->_memory->write(resultAddress, value);
+			cpu->writeMemory(resultAddress, value);
 		}
 	};
 
-	template<class AddressSource>
-	struct IndirectPlusYAddress
+	template<class AddressSource, AddressBehavior Behavior = AddressBehavior::AlwaysRead>
+	struct IndirectPlusYAddress : public AddressBehaviorImplementation<AddressSource, Behavior>
 	{
 		static inline byte read(Cpu* cpu)
 		{
-			byte zeroPageIndex = AddressSource::read(cpu);
+			byte zeroPageIndex = readAddress(cpu);
 	
-			byte lowByte = cpu->_memory->read(word(zeroPageIndex));
-			byte highByte = cpu->_memory->read(static_cast<byte>(zeroPageIndex + 1));
+			byte lowByte = cpu->readMemory(word(zeroPageIndex));
+			byte highByte = cpu->readMemory(static_cast<byte>(zeroPageIndex + 1));
 
 			word resultAddress;
 			resultAddress.setLowByte(lowByte);
@@ -311,15 +311,15 @@ namespace sukiNES
 
 			resultAddress += Register<Y>::read(cpu);
 
-			return cpu->_memory->read(resultAddress);
+			return cpu->readMemory(resultAddress);
 		}
 
 		static inline void write(Cpu* cpu, byte value)
 		{
-			byte zeroPageIndex = AddressSource::read(cpu);
+			byte zeroPageIndex = writeAddress(cpu);
 	
-			byte lowByte = cpu->_memory->read(zeroPageIndex);
-			byte highByte = cpu->_memory->read(static_cast<byte>(zeroPageIndex + 1));
+			byte lowByte = cpu->readMemory(zeroPageIndex);
+			byte highByte = cpu->readMemory(static_cast<byte>(zeroPageIndex + 1));
 
 			word resultAddress;
 			resultAddress.setLowByte(lowByte);
@@ -327,7 +327,7 @@ namespace sukiNES
 
 			resultAddress += Register<Y>::read(cpu);
 
-			cpu->_memory->write(resultAddress, value);
+			cpu->writeMemory(resultAddress, value);
 		}
 	};
 
@@ -897,12 +897,176 @@ namespace sukiNES
 	{
 		static inline void execute(Cpu* cpu)
 		{
-			byte result = Register<A>::read(cpu) & Register<X>::read(cpu);
+			byte result = Register<X>::read(cpu) & Register<A>::read(cpu);
+
+			Addressing::write(cpu, result);
+		}
+	};
+
+	template<class Addressing, class B>
+	struct DCP
+	{
+		static inline void execute(Cpu* cpu)
+		{
+			byte a = Addressing::read(cpu);
+			a--;
+
+			int result = static_cast<int>(Register<A>::read(cpu)) - static_cast<int>(a);
+
+			Flag<Zero>::write(cpu, TestZero(result));
+			Flag<Negative>::write(cpu, TestNegative(result));
+			Flag<Carry>::write(cpu, (result >= 0) ? 1 : 0);
+
+			Addressing::write(cpu, a);
+		}
+	};
+
+	template<class Addressing, class B>
+	struct ISC
+	{
+		static inline void execute(Cpu* cpu)
+		{
+			byte a = Addressing::read(cpu);
+			a++;
+			Addressing::write(cpu, a);
+
+			byte b = Register<A>::read(cpu);
+			byte carry = Flag<Carry>::read(cpu) ? 0 : 1;
+
+			int temp = (int)b - (int)a - (int)carry;
+			byte result = static_cast<byte>(temp);
+
+			Flag<Carry>::write(cpu, (temp >= 0 && temp < 0x100));
+			Flag<Zero>::write(cpu, TestZero(result));
+			Flag<Negative>::write(cpu, TestNegative(result));
+			Flag<Overflow>::write(cpu, ((b ^ a) & 0x80) && ((b ^ temp) & 0x80));
+
+			Register<A>::write(cpu, result);
+		}
+	};
+
+	template<class Addressing, class B>
+	struct SLO
+	{
+		static inline void execute(Cpu* cpu)
+		{
+			byte a = Addressing::read(cpu);
+			byte shiffedBit = a & SUKINES_BIT(7);
+
+			a = a << 1;
+
+			Flag<Negative>::write(cpu, TestNegative(a));
+			Flag<Carry>::write(cpu, shiffedBit);
+			Flag<Zero>::write(cpu, TestZero(a));
+
+			Addressing::write(cpu, a);
+
+			byte b = Register<A>::read(cpu);
+
+			byte result = a | b;
+
+			Flag<Zero>::write(cpu, TestZero(result));
+			Flag<Negative>::write(cpu, TestNegative(result));
+
+			Register<A>::write(cpu, result);
+		}
+	};
+
+	template<class Addressing, class B>
+	struct RLA
+	{
+		static inline void execute(Cpu* cpu)
+		{
+			u16 temp = static_cast<u16>(Addressing::read(cpu));
+			temp <<= 1;
+			if(Flag<Carry>::read(cpu))
+			{
+				temp |= 0x1;
+			}
+			Flag<Carry>::write(cpu, temp > 0xFF);
+
+			temp &= 0xFF;
+
+			byte result = static_cast<byte>(temp);
 
 			Flag<Negative>::write(cpu, TestNegative(result));
 			Flag<Zero>::write(cpu, TestZero(result));
 
 			Addressing::write(cpu, result);
+
+			byte a = Register<A>::read(cpu);
+			byte b = result;
+
+			result = a & b;
+
+			Flag<Zero>::write(cpu, TestZero(result));
+			Flag<Negative>::write(cpu, TestNegative(result));
+
+			Register<A>::write(cpu, result);
+		}
+	};
+
+	template<class Addressing, class B>
+	struct RRA
+	{
+		static inline void execute(Cpu* cpu)
+		{
+			u16 temp = static_cast<u16>(Addressing::read(cpu));
+			if(Flag<Carry>::read(cpu))
+			{
+				temp |= 0x100;
+			}
+			Flag<Carry>::write(cpu, temp & SUKINES_BIT(0));
+
+			temp >>= 1;
+
+			byte result = static_cast<byte>(temp);
+
+			Flag<Negative>::write(cpu, TestNegative(result));
+			Flag<Zero>::write(cpu, TestZero(result));
+
+			Addressing::write(cpu, result);
+
+			byte a = Register<A>::read(cpu);
+			byte b = result;
+			byte carry = Flag<Carry>::read(cpu);
+
+			int temp2 = a + b + carry;
+			result = static_cast<byte>(temp2);
+
+			Flag<Carry>::write(cpu, (temp2 > 0xFF));
+			Flag<Zero>::write(cpu, TestZero(result));
+			Flag<Negative>::write(cpu, TestNegative(result));
+			Flag<Overflow>::write(cpu, !((a ^ b) & 0x80) && ((a ^ temp2) & 0x80));
+
+			Register<A>::write(cpu, result);
+		}
+	};
+
+	template<class Addressing, class B>
+	struct SRE
+	{
+		static inline void execute(Cpu* cpu)
+		{
+			byte a = Addressing::read(cpu);
+			byte shiffedBit = a & SUKINES_BIT(0);
+
+			a = a >> 1;
+
+			Flag<Negative>::write(cpu, 0);
+			Flag<Carry>::write(cpu, shiffedBit);
+			Flag<Zero>::write(cpu, TestZero(a));
+
+			Addressing::write(cpu, a);
+
+			byte b = Register<A>::read(cpu);
+
+			byte result = b ^ a;
+
+			Flag<Zero>::write(cpu, TestZero(result));
+			Flag<Negative>::write(cpu, TestNegative(result));
+
+			Register<A>::write(cpu, result);
 		}
 	};
 
@@ -1196,5 +1360,60 @@ namespace sukiNES
 		registerOpcode< 0xB3, Instruction<LAX, IndirectPlusYAddress<NextByte>, void> >();
 		registerOpcode< 0xB7, Instruction<LAX, ToAddressPlusY<NextByte>, void> >();
 		registerOpcode< 0xBF, Instruction<LAX, ToAddressPlusY<NextWord>, void> >();
+
+		registerOpcode< 0x83, Instruction<AAX, IndirectXAddress<NextByte>, void> >();
+		registerOpcode< 0x87, Instruction<AAX, ToAddress<NextByte>, void> >();
+		registerOpcode< 0x8F, Instruction<AAX, ToAddress<NextWord>, void> >();
+		registerOpcode< 0x97, Instruction<AAX, ToAddressPlusY<NextByte>, void> >();
+
+		registerOpcode< 0xEB, Instruction<Substract, Register<A>, NextByte> >();
+
+		registerOpcode< 0xC3, Instruction<DCP, IndirectXAddress<NextByte, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0xC7, Instruction<DCP, ToAddress<NextByte, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0xCF, Instruction<DCP, ToAddress<NextWord, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0xD3, Instruction<DCP, IndirectPlusYAddress<NextByte, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0xD7, Instruction<DCP, ToAddressPlusX<NextByte, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0xDB, Instruction<DCP, ToAddressPlusY<NextWord, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0xDF, Instruction<DCP, ToAddressPlusX<NextWord, AddressBehavior::KeepAddress>, void> >();
+
+		registerOpcode< 0xE3, Instruction<ISC, IndirectXAddress<NextByte, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0xE7, Instruction<ISC, ToAddress<NextByte, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0xEF, Instruction<ISC, ToAddress<NextWord, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0xF3, Instruction<ISC, IndirectPlusYAddress<NextByte, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0xF7, Instruction<ISC, ToAddressPlusX<NextByte, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0xFB, Instruction<ISC, ToAddressPlusY<NextWord, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0xFF, Instruction<ISC, ToAddressPlusX<NextWord, AddressBehavior::KeepAddress>, void> >();
+
+		registerOpcode< 0x03, Instruction<SLO, IndirectXAddress<NextByte, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0x07, Instruction<SLO, ToAddress<NextByte, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0x0F, Instruction<SLO, ToAddress<NextWord, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0x13, Instruction<SLO, IndirectPlusYAddress<NextByte, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0x17, Instruction<SLO, ToAddressPlusX<NextByte, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0x1B, Instruction<SLO, ToAddressPlusY<NextWord, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0x1F, Instruction<SLO, ToAddressPlusX<NextWord, AddressBehavior::KeepAddress>, void> >();
+
+		registerOpcode< 0x23, Instruction<RLA, IndirectXAddress<NextByte, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0x27, Instruction<RLA, ToAddress<NextByte, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0x2F, Instruction<RLA, ToAddress<NextWord, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0x33, Instruction<RLA, IndirectPlusYAddress<NextByte, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0x37, Instruction<RLA, ToAddressPlusX<NextByte, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0x3B, Instruction<RLA, ToAddressPlusY<NextWord, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0x3F, Instruction<RLA, ToAddressPlusX<NextWord, AddressBehavior::KeepAddress>, void> >();
+
+		registerOpcode< 0x43, Instruction<SRE, IndirectXAddress<NextByte, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0x47, Instruction<SRE, ToAddress<NextByte, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0x4F, Instruction<SRE, ToAddress<NextWord, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0x53, Instruction<SRE, IndirectPlusYAddress<NextByte, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0x57, Instruction<SRE, ToAddressPlusX<NextByte, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0x5B, Instruction<SRE, ToAddressPlusY<NextWord, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0x5F, Instruction<SRE, ToAddressPlusX<NextWord, AddressBehavior::KeepAddress>, void> >();
+
+		registerOpcode< 0x63, Instruction<RRA, IndirectXAddress<NextByte, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0x67, Instruction<RRA, ToAddress<NextByte, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0x6F, Instruction<RRA, ToAddress<NextWord, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0x73, Instruction<RRA, IndirectPlusYAddress<NextByte, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0x77, Instruction<RRA, ToAddressPlusX<NextByte, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0x7B, Instruction<RRA, ToAddressPlusY<NextWord, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0x7F, Instruction<RRA, ToAddressPlusX<NextWord, AddressBehavior::KeepAddress>, void> >();
 	}
 }
