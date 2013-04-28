@@ -76,11 +76,17 @@ namespace sukiNES
 		template<class Address>
 		friend struct ToAddress;
 
+		template<class Address, class Register>
+		friend struct ToAddressPlusRegister;
+
 		template<class Address>
 		friend struct ToAddressReadWrite;
 
 		template<class Address>
 		friend struct RelativeAddress;
+
+		template<class Address>
+		friend struct IndirectAbsoluteAddress;
 
 		template<class Address>
 		friend struct IndirectXAddress;

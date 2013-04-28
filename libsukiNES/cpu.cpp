@@ -147,18 +147,80 @@ namespace sukiNES
 		}
 	};
 
-	template<class Address>
+	template<class AddressSource>
+	struct AlwaysReadAddressBehavior
+	{
+		static word readAddress(Cpu* cpu)
+		{
+			return AddressSource::read(cpu);
+		}
+
+		static word writeAddress(Cpu* cpu)
+		{
+			return AddressSource::read(cpu);
+		}
+	};
+
+	template<class AddressSource>
+	struct KeepAddressBehavior
+	{
+		static word s_lastReadAddress;
+
+		static word readAddress(Cpu* cpu)
+		{
+			s_lastReadAddress = AddressSource::read(cpu);
+			return s_lastReadAddress;
+		}
+
+		static word writeAddress(Cpu* cpu)
+		{
+			return s_lastReadAddress;
+		}
+	};
+
+	/*template<class AddressSource>
+	word KeepAddressBehavior<AddressSource>::s_lastReadAddress = 0;*/
+
+	template<class AddressSource>
 	struct ToAddress
 	{
 		static inline byte read(Cpu* cpu)
 		{
-			return cpu->_memory->read(Address::read(cpu));
+			return cpu->_memory->read(AddressSource::read(cpu));
 		}
 
 		static inline void write(Cpu* cpu, byte value)
 		{
-			cpu->_memory->write(Address::read(cpu), value);
+			cpu->_memory->write(AddressSource::read(cpu), value);
 		}
+	};
+
+	template<class AddressSource, class Register>
+	struct ToAddressPlusRegister
+	{
+		static inline byte read(Cpu* cpu)
+		{
+			word address = AddressSource::read(cpu);
+			address += Register::read(cpu);
+			return cpu->_memory->read(address);
+		}
+
+		static inline void write(Cpu* cpu, byte value)
+		{
+			word address = AddressSource::read(cpu);
+			address += Register::read(cpu);
+			cpu->_memory->write(address, value);
+		}
+	};
+	
+	template<class Address>
+	struct ToAddressPlusX : public ToAddressPlusRegister<Address, Register<X>>
+	{
+	};
+
+	template<class Address>
+	struct ToAddressPlusY : public ToAddressPlusRegister<Address, Register<Y>>
+	{
 	};
 
 	template<class Address>
@@ -189,6 +251,27 @@ namespace sukiNES
 			offset relativeByte = static_cast<offset>(Address::read(cpu));
 
 			return static_cast<word>(cpu->_registers.ProgramCounter + relativeByte + 1);
+		}
+	};
+
+	template<class Address>
+	struct IndirectAbsoluteAddress
+	{
+		static inline word read(Cpu* cpu)
+		{
+			word absoluteAddress = Address::read(cpu);
+
+			byte lowByte = cpu->_memory->read(absoluteAddress);
+
+			absoluteAddress.setLowByte(static_cast<byte>(absoluteAddress.lowByte() + 1));
+
+			byte highByte = cpu->_memory->read(absoluteAddress);
+
+			word readWord;
+			readWord.setLowByte(lowByte);
+			readWord.setHighByte(highByte);
+
+			return readWord;
 		}
 	};
 
@@ -283,6 +366,24 @@ namespace sukiNES
 			readWord.setHighByte(highByte);
 
 			return readWord;
+		}
+	};
+
+	template<class Register>
+	struct ToAddressPlusRegister<NextByte, Register>
+	{
+		static inline byte read(Cpu* cpu)
+		{
+			word address = NextByte::read(cpu);
+			address = static_cast<byte>(address + Register::read(cpu));
+			return cpu->_memory->read(address);
+		}
+
+		static inline void write(Cpu* cpu, byte value)
+		{
+			word address = NextByte::read(cpu);
+			address = static_cast<byte>(address + Register::read(cpu));
+			cpu->_memory->write(address, value);
 		}
 	};
 
@@ -853,6 +954,7 @@ namespace sukiNES
 		registerOpcode< 0x60, Instruction<RTS, void, void> >();
 
 		registerOpcode< 0x4C, Instruction<JMP, NextWord, void> >();
+		registerOpcode< 0x6C, Instruction<JMP, IndirectAbsoluteAddress<NextWord>, void> >();
 
 		registerOpcode< 0x10, Instruction<BPL, RelativeAddress<NextByte>, void> >();
 		registerOpcode< 0x30, Instruction<BMI, RelativeAddress<NextByte>, void> >();
@@ -874,6 +976,9 @@ namespace sukiNES
 		registerOpcode< 0xAD, Instruction<Load, ToAddress<NextWord>, Register<A>> >();
 		registerOpcode< 0xAE, Instruction<Load, ToAddress<NextWord>, Register<X>> >();
 		registerOpcode< 0xB1, Instruction<Load, IndirectPlusYAddress<NextByte>, Register<A>> >();
+		registerOpcode< 0xB4, Instruction<Load, ToAddressPlusX<NextByte>, Register<Y>> >();
+		registerOpcode< 0xB5, Instruction<Load, ToAddressPlusX<NextByte>, Register<A>> >();
+		registerOpcode< 0xB9, Instruction<Load, ToAddressPlusY<NextWord>, Register<A>> >();
 
 		registerOpcode< 0x81, Instruction<Store, Register<A>, IndirectXAddress<NextByte>> >();
 		registerOpcode< 0x84, Instruction<Store, Register<Y>, ToAddress<NextByte>> >();
@@ -882,6 +987,10 @@ namespace sukiNES
 		registerOpcode< 0x8C, Instruction<Store, Register<Y>, ToAddress<NextWord>> >();
 		registerOpcode< 0x8D, Instruction<Store, Register<A>, ToAddress<NextWord>> >();
 		registerOpcode< 0x8E, Instruction<Store, Register<X>, ToAddress<NextWord>> >();
+		registerOpcode< 0x91, Instruction<Store, Register<A>, IndirectPlusYAddress<NextByte>> >();
+		registerOpcode< 0x94, Instruction<Store, Register<Y>, ToAddressPlusX<NextByte>> >();
+		registerOpcode< 0x95, Instruction<Store, Register<A>, ToAddressPlusX<NextByte>> >();
+		registerOpcode< 0x99, Instruction<Store, Register<A>, ToAddressPlusY<NextWord>> >();
 
 		registerOpcode< 0xEA, Instruction<NOP, void, void> >();
 
@@ -906,14 +1015,25 @@ namespace sukiNES
 		registerOpcode< 0x05, Instruction<OR, Register<A>, ToAddress<NextByte>> >();
 		registerOpcode< 0x09, Instruction<OR, Register<A>, NextByte> >();
 		registerOpcode< 0x0D, Instruction<OR, Register<A>, ToAddress<NextWord>> >();
+		registerOpcode< 0x11, Instruction<OR, Register<A>, IndirectPlusYAddress<NextByte>> >();
+		registerOpcode< 0x15, Instruction<OR, Register<A>, ToAddressPlusX<NextByte>> >();
+		registerOpcode< 0x19, Instruction<OR, Register<A>, ToAddressPlusY<NextWord>> >();
+
 		registerOpcode< 0x21, Instruction<AND, Register<A>, IndirectXAddress<NextByte>> >();
 		registerOpcode< 0x25, Instruction<AND, Register<A>, ToAddress<NextByte>> >();
 		registerOpcode< 0x29, Instruction<AND, Register<A>, NextByte> >();
 		registerOpcode< 0x2D, Instruction<AND, Register<A>, ToAddress<NextWord>> >();
+		registerOpcode< 0x31, Instruction<AND, Register<A>, IndirectPlusYAddress<NextByte>> >();
+		registerOpcode< 0x35, Instruction<AND, Register<A>, ToAddressPlusX<NextByte>> >();
+		registerOpcode< 0x39, Instruction<AND, Register<A>, ToAddressPlusY<NextWord>> >();
+
 		registerOpcode< 0x41, Instruction<EOR, Register<A>, IndirectXAddress<NextByte>> >();
 		registerOpcode< 0x45, Instruction<EOR, Register<A>, ToAddress<NextByte>> >();
 		registerOpcode< 0x49, Instruction<EOR, Register<A>, NextByte> >();
 		registerOpcode< 0x4D, Instruction<EOR, Register<A>, ToAddress<NextWord>> >();
+		registerOpcode< 0x51, Instruction<EOR, Register<A>, IndirectPlusYAddress<NextByte>> >();
+		registerOpcode< 0x55, Instruction<EOR, Register<A>, ToAddressPlusX<NextByte>> >();
+		registerOpcode< 0x59, Instruction<EOR, Register<A>, ToAddressPlusY<NextWord>> >();
 
 		registerOpcode< 0xC0, Instruction<Compare, Register<Y>, NextByte> >();
 		registerOpcode< 0xC1, Instruction<Compare, Register<A>, IndirectXAddress<NextByte>> >();
@@ -922,6 +1042,9 @@ namespace sukiNES
 		registerOpcode< 0xC9, Instruction<Compare, Register<A>, NextByte> >();
 		registerOpcode< 0xCC, Instruction<Compare, Register<Y>, ToAddress<NextWord>> >();
 		registerOpcode< 0xCD, Instruction<Compare, Register<A>, ToAddress<NextWord>> >();
+		registerOpcode< 0xD1, Instruction<Compare, Register<A>, IndirectPlusYAddress<NextByte>> >();
+		registerOpcode< 0xD5, Instruction<Compare, Register<A>, ToAddressPlusX<NextByte>> >();
+		registerOpcode< 0xD9, Instruction<Compare, Register<A>, ToAddressPlusY<NextWord>> >();
 		registerOpcode< 0xE0, Instruction<Compare, Register<X>, NextByte> >();
 		registerOpcode< 0xE4, Instruction<Compare, Register<X>, ToAddress<NextByte>> >();
 		registerOpcode< 0xEC, Instruction<Compare, Register<X>, ToAddress<NextWord>> >();
@@ -930,11 +1053,17 @@ namespace sukiNES
 		registerOpcode< 0x65, Instruction<Add, Register<A>, ToAddress<NextByte>> >();
 		registerOpcode< 0x69, Instruction<Add, Register<A>, NextByte> >();
 		registerOpcode< 0x6D, Instruction<Add, Register<A>, ToAddress<NextWord>> >();
+		registerOpcode< 0x71, Instruction<Add, Register<A>, IndirectPlusYAddress<NextByte>> >();
+		registerOpcode< 0x75, Instruction<Add, Register<A>, ToAddressPlusX<NextByte>> >();
+		registerOpcode< 0x79, Instruction<Add, Register<A>, ToAddressPlusY<NextWord>> >();
 
 		registerOpcode< 0xE1, Instruction<Substract, Register<A>, IndirectXAddress<NextByte>> >();
 		registerOpcode< 0xE5, Instruction<Substract, Register<A>, ToAddress<NextByte>> >();
 		registerOpcode< 0xE9, Instruction<Substract, Register<A>, NextByte> >();
 		registerOpcode< 0xED, Instruction<Substract, Register<A>, ToAddress<NextWord>> >();
+		registerOpcode< 0xF1, Instruction<Substract, Register<A>, IndirectPlusYAddress<NextByte>> >();
+		registerOpcode< 0xF5, Instruction<Substract, Register<A>, ToAddressPlusX<NextByte>> >();
+		registerOpcode< 0xF9, Instruction<Substract, Register<A>, ToAddressPlusY<NextWord>> >();
 
 		registerOpcode< 0xE6, Instruction<Increment, ToAddressReadWrite<NextByte>, void> >();
 		registerOpcode< 0xC8, Instruction<Increment, Register<Y>, void> >();
