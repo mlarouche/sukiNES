@@ -8,3 +8,7 @@
 /sukiNES_StressTest/Debug
 
 /sukiNES_StressTest/*.user
+/Release
+/libsukiNES/Release
+/sukiNES/Release
+/sukiNES_StressTest/Release
