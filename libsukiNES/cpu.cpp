@@ -3,6 +3,7 @@
 // Local includes
 #include "assert.h"
 #include "memory.h"
+#include "ppu.h"
 
 namespace sukiNES
 {
@@ -204,20 +205,34 @@ namespace sukiNES
 	template<class AddressSource, class Register, AddressBehavior Behavior>
 	struct ToAddressPlusRegister : public AddressBehaviorImplementation<AddressSource, Behavior>
 	{
+		static bool HasCrossedPageBoundary;
+
 		static inline byte read(Cpu* cpu)
 		{
 			word address = readAddress(cpu);
-			address += Register::read(cpu);
+			byte registerValue = Register::read(cpu);
+
+			HasCrossedPageBoundary = (((address & 0xFF) + registerValue) >= 0x100);
+
+			address += registerValue;
+
 			return cpu->readMemory(address);
 		}
 
 		static inline void write(Cpu* cpu, byte value)
 		{
 			word address = writeAddress(cpu);
-			address += Register::read(cpu);
+			byte registerValue = Register::read(cpu);
+
+			HasCrossedPageBoundary = (((address & 0xFF) + registerValue) >= 0x100);
+
+			address += registerValue;
 			cpu->writeMemory(address, value);
 		}
 	};
+
+	template<class AddressSource, class Register, AddressBehavior Behavior>
+	bool ToAddressPlusRegister<AddressSource,Register,Behavior>::HasCrossedPageBoundary = false;
 	
 	template<class AddressSource, AddressBehavior Behavior = AddressBehavior::AlwaysRead>
 	struct ToAddressPlusX : public ToAddressPlusRegister<AddressSource, Register<X>, Behavior>
@@ -232,13 +247,20 @@ namespace sukiNES
 	template<class AddressSource>
 	struct RelativeAddress
 	{
+		static bool HasCrossedPageBoundary;
+
 		static inline word read(Cpu* cpu)
 		{
 			offset relativeByte = static_cast<offset>(AddressSource::read(cpu));
 
+			HasCrossedPageBoundary = (((cpu->programCounter()+2) & 0xFF) + relativeByte) > 0x100;
+
 			return static_cast<word>(cpu->programCounter() + relativeByte + 1);
 		}
 	};
+
+	template<class AddressSource>
+	bool RelativeAddress<AddressSource>::HasCrossedPageBoundary = false;
 
 	template<class AddressSource>
 	struct IndirectAbsoluteAddress
@@ -269,6 +291,11 @@ namespace sukiNES
 			byte zeroPageIndex = readAddress(cpu);
 			zeroPageIndex += Register<X>::read(cpu);
 
+			if (Behavior == AddressBehavior::AlwaysRead)
+			{
+				cpu->tick();
+			}
+
 			byte lowByte = cpu->readMemory(word(zeroPageIndex));
 			byte highByte = cpu->readMemory(static_cast<byte>(zeroPageIndex + 1));
 
@@ -284,6 +311,11 @@ namespace sukiNES
 			byte zeroPageIndex = writeAddress(cpu);
 			zeroPageIndex += Register<X>::read(cpu);
 
+			if (Behavior == AddressBehavior::AlwaysRead)
+			{
+				cpu->tick();
+			}
+
 			byte lowByte = cpu->readMemory(word(zeroPageIndex));
 			byte highByte = cpu->readMemory(static_cast<byte>(zeroPageIndex + 1));
 
@@ -298,18 +330,23 @@ namespace sukiNES
 	template<class AddressSource, AddressBehavior Behavior = AddressBehavior::AlwaysRead>
 	struct IndirectPlusYAddress : public AddressBehaviorImplementation<AddressSource, Behavior>
 	{
+		static bool HasCrossedPageBoundary;
+
 		static inline byte read(Cpu* cpu)
 		{
 			byte zeroPageIndex = readAddress(cpu);
-	
+			byte registerY = Register<Y>::read(cpu);
+
 			byte lowByte = cpu->readMemory(word(zeroPageIndex));
 			byte highByte = cpu->readMemory(static_cast<byte>(zeroPageIndex + 1));
+
+			HasCrossedPageBoundary = ((lowByte + registerY) >= 0x100);
 
 			word resultAddress;
 			resultAddress.setLowByte(lowByte);
 			resultAddress.setHighByte(highByte);
 
-			resultAddress += Register<Y>::read(cpu);
+			resultAddress += registerY;
 
 			return cpu->readMemory(resultAddress);
 		}
@@ -317,19 +354,27 @@ namespace sukiNES
 		static inline void write(Cpu* cpu, byte value)
 		{
 			byte zeroPageIndex = writeAddress(cpu);
-	
+			byte registerY = Register<Y>::read(cpu);
+
+			HasCrossedPageBoundary = ((static_cast<int>(zeroPageIndex) + registerY + 1) >= 0x100);
+
 			byte lowByte = cpu->readMemory(zeroPageIndex);
 			byte highByte = cpu->readMemory(static_cast<byte>(zeroPageIndex + 1));
+
+			HasCrossedPageBoundary = ((lowByte + registerY) >= 0x100);
 
 			word resultAddress;
 			resultAddress.setLowByte(lowByte);
 			resultAddress.setHighByte(highByte);
 
-			resultAddress += Register<Y>::read(cpu);
+			resultAddress += registerY;
 
 			cpu->writeMemory(resultAddress, value);
 		}
 	};
+
+	template<class AddressSource, AddressBehavior Behavior>
+	bool IndirectPlusYAddress<AddressSource, Behavior>::HasCrossedPageBoundary = false;
 
 	struct NextByte
 	{
@@ -388,23 +433,22 @@ namespace sukiNES
 	};
 
 	template<class Test, class Addressing, class B>
-	struct JumpImplementation
+	struct BranchImplementation
 	{
 		static inline void execute(Cpu* cpu)
 		{
 			word jumpAddress = Addressing::read(cpu);
 			if (Test::execute(cpu))
 			{
+				cpu->tick();
+
+				if (Addressing::HasCrossedPageBoundary)
+				{
+					cpu->tick();
+				}
+
 				cpu->setProgramCounter(static_cast<uint32>(jumpAddress) - 1);
 			}
-		}
-	};
-
-	struct AlwaysTrue
-	{
-		static inline bool execute(Cpu *cpu)
-		{
-			return true;
 		}
 	};
 
@@ -419,8 +463,13 @@ namespace sukiNES
 	};
 
 	template<class Addressing, class B>
-	struct JMP : public JumpImplementation<AlwaysTrue, Addressing, B>
+	struct JMP
 	{
+		static inline void execute(Cpu* cpu)
+		{
+			word jumpAddress = Addressing::read(cpu);
+			cpu->setProgramCounter(static_cast<uint32>(jumpAddress) - 1);
+		}
 	};
 
 	template<class Addressing, class B>
@@ -429,6 +478,7 @@ namespace sukiNES
 		static inline void execute(Cpu* cpu)
 		{
 			word jumpAddress = Addressing::read(cpu);
+			cpu->tick();
 			cpu->push(cpu->programCounter());
 
 			cpu->setProgramCounter(static_cast<uint32>(jumpAddress) - 1);
@@ -440,7 +490,10 @@ namespace sukiNES
 	{
 		static inline void execute(Cpu* cpu)
 		{
+			cpu->tick();
+			cpu->tick();
 			cpu->setProgramCounter( cpu->popWord() );
+			cpu->tick();
 		}
 	};
 
@@ -449,6 +502,8 @@ namespace sukiNES
 	{
 		static inline void execute(Cpu* cpu)
 		{
+			cpu->tick();
+			cpu->tick();
 			byte processorStatus = cpu->popByte();
 			word pc = cpu->popWord();
 
@@ -460,43 +515,105 @@ namespace sukiNES
 	};
 	
 	template<class Addressing, class B>
-	struct BCS : public JumpImplementation<FlagTest<Carry,1>, Addressing, B>
+	struct BCS : public BranchImplementation<FlagTest<Carry,1>, Addressing, B>
 	{
 	};
 
 	template<class Addressing, class B>
-	struct BCC : public JumpImplementation<FlagTest<Carry,0>, Addressing, B>
+	struct BCC : public BranchImplementation<FlagTest<Carry,0>, Addressing, B>
 	{
 	};
 
 	template<class Addressing, class B>
-	struct BEQ : public JumpImplementation<FlagTest<Zero,1>, Addressing, B>
+	struct BEQ : public BranchImplementation<FlagTest<Zero,1>, Addressing, B>
 	{
 	};
 
 	template<class Addressing, class B>
-	struct BNE: public JumpImplementation<FlagTest<Zero,0>, Addressing, B>
+	struct BNE: public BranchImplementation<FlagTest<Zero,0>, Addressing, B>
 	{
 	};
 
 	template<class Addressing, class B>
-	struct BVS: public JumpImplementation<FlagTest<Overflow,1>, Addressing, B>
+	struct BVS: public BranchImplementation<FlagTest<Overflow,1>, Addressing, B>
 	{
 	};
 
 	template<class Addressing, class B>
-	struct BVC: public JumpImplementation<FlagTest<Overflow,0>, Addressing, B>
+	struct BVC: public BranchImplementation<FlagTest<Overflow,0>, Addressing, B>
 	{
 	};
 
 	template<class Addressing, class B>
-	struct BPL: public JumpImplementation<FlagTest<Negative,0>, Addressing, B>
+	struct BPL: public BranchImplementation<FlagTest<Negative,0>, Addressing, B>
 	{
 	};
 
 	template<class Addressing, class B>
-	struct BMI: public JumpImplementation<FlagTest<Negative,1>, Addressing, B>
+	struct BMI: public BranchImplementation<FlagTest<Negative,1>, Addressing, B>
 	{
+	};
+
+	template<class Addressing>
+	struct LoadCycleTick
+	{
+		static inline void tick(Cpu* cpu)
+		{
+		}
+	};
+
+	template<>
+	struct LoadCycleTick<ToAddressPlusX<NextByte>>
+	{
+		static inline void tick(Cpu* cpu)
+		{
+			cpu->tick();
+		}
+	};
+
+	template<>
+	struct LoadCycleTick<ToAddressPlusX<NextWord>>
+	{
+		static inline void tick(Cpu* cpu)
+		{
+			if (ToAddressPlusX<NextWord>::HasCrossedPageBoundary)
+			{
+				cpu->tick();
+			}
+		}
+	};
+
+	template<>
+	struct LoadCycleTick<ToAddressPlusY<NextByte>>
+	{
+		static inline void tick(Cpu* cpu)
+		{
+			cpu->tick();
+		}
+	};
+
+	template<>
+	struct LoadCycleTick<ToAddressPlusY<NextWord>>
+	{
+		static inline void tick(Cpu* cpu)
+		{
+			if (ToAddressPlusY<NextWord>::HasCrossedPageBoundary)
+			{
+				cpu->tick();
+			}
+		}
+	};
+
+	template<>
+	struct LoadCycleTick<IndirectPlusYAddress<NextByte>>
+	{
+		static inline void tick(Cpu* cpu)
+		{
+			if (IndirectPlusYAddress<NextByte>::HasCrossedPageBoundary)
+			{
+				cpu->tick();
+			}
+		}
 	};
 
 	template<class Source, class Destination>
@@ -508,8 +625,108 @@ namespace sukiNES
 
 			Destination::write(cpu, value);
 
+			LoadCycleTick<Source>::tick(cpu);
+
 			Flag<Zero>::write(cpu, TestZero(value));
 			Flag<Negative>::write(cpu, TestNegative(value));
+		}
+	};
+
+	template<class Addressing>
+	struct StoreCycleTick
+	{
+		static inline void tick(Cpu* cpu)
+		{
+		}
+	};
+
+	template<>
+	struct StoreCycleTick<IndirectPlusYAddress<NextByte>>
+	{
+		static inline void tick(Cpu* cpu)
+		{
+			cpu->tick();
+		}
+	};
+
+	template<>
+	struct StoreCycleTick<ToAddressPlusX<NextByte>>
+	{
+		static inline void tick(Cpu* cpu)
+		{
+			cpu->tick();
+		}
+	};
+
+	template<>
+	struct StoreCycleTick<ToAddressPlusX<NextWord>>
+	{
+		static inline void tick(Cpu* cpu)
+		{
+			cpu->tick();
+		}
+	};
+
+	template<>
+	struct StoreCycleTick<ToAddressPlusY<NextByte>>
+	{
+		static inline void tick(Cpu* cpu)
+		{
+			cpu->tick();
+		}
+	};
+
+	template<>
+	struct StoreCycleTick<ToAddressPlusY<NextWord>>
+	{
+		static inline void tick(Cpu* cpu)
+		{
+			cpu->tick();
+		}
+	};
+
+	template<>
+	struct StoreCycleTick<IndirectPlusYAddress<NextByte, AddressBehavior::KeepAddress>>
+	{
+		static inline void tick(Cpu* cpu)
+		{
+			cpu->tick();
+		}
+	};
+
+	template<>
+	struct StoreCycleTick<ToAddressPlusX<NextByte, AddressBehavior::KeepAddress>>
+	{
+		static inline void tick(Cpu* cpu)
+		{
+			cpu->tick();
+		}
+	};
+
+	template<>
+	struct StoreCycleTick<ToAddressPlusX<NextWord, AddressBehavior::KeepAddress>>
+	{
+		static inline void tick(Cpu* cpu)
+		{
+			cpu->tick();
+		}
+	};
+
+	template<>
+	struct StoreCycleTick<ToAddressPlusY<NextByte, AddressBehavior::KeepAddress>>
+	{
+		static inline void tick(Cpu* cpu)
+		{
+			cpu->tick();
+		}
+	};
+
+	template<>
+	struct StoreCycleTick<ToAddressPlusY<NextWord, AddressBehavior::KeepAddress>>
+	{
+		static inline void tick(Cpu* cpu)
+		{
+			cpu->tick();
 		}
 	};
 
@@ -520,6 +737,8 @@ namespace sukiNES
 		{
 			byte value = Source::read(cpu);
 
+			StoreCycleTick<Destination>::tick(cpu);
+
 			Destination::write(cpu, value);
 		}
 	};
@@ -529,6 +748,7 @@ namespace sukiNES
 	{
 		static inline void execute(Cpu* cpu)
 		{
+			cpu->tick();
 			cpu->push(Source::read(cpu));
 		}
 	};
@@ -541,6 +761,7 @@ namespace sukiNES
 			byte readValue = Register<ProcessorStatus>::read(cpu);
 			readValue |= SUKINES_BIT(Break);
 
+			cpu->tick();
 			cpu->push(readValue);
 		}
 	};
@@ -550,6 +771,8 @@ namespace sukiNES
 	{
 		static inline void execute(Cpu* cpu)
 		{
+			cpu->tick();
+			cpu->tick();
 			byte poppedValue = cpu->popByte();
 
 			Destination::write(cpu, poppedValue);
@@ -564,6 +787,8 @@ namespace sukiNES
 	{
 		static inline void execute(Cpu* cpu)
 		{
+			cpu->tick();
+			cpu->tick();
 			byte poppedValue = cpu->popByte();
 
 			Register<ProcessorStatus>::write(cpu, poppedValue);
@@ -578,6 +803,7 @@ namespace sukiNES
 	{
 		static inline void execute(Cpu* cpu)
 		{
+			cpu->tick();
 			Flag::write(cpu, 1);
 		}
 	};
@@ -587,6 +813,7 @@ namespace sukiNES
 	{
 		static inline void execute(Cpu* cpu)
 		{
+			cpu->tick();
 			Flag::write(cpu, 0);
 		}
 	};
@@ -596,6 +823,7 @@ namespace sukiNES
 	{
 		static inline void execute(Cpu* cpu)
 		{
+			cpu->tick();
 		}
 	};
 
@@ -605,6 +833,7 @@ namespace sukiNES
 		static inline void execute(Cpu* cpu)
 		{
 			Addressing::read(cpu);
+			cpu->tick();
 		}
 	};
 
@@ -613,9 +842,31 @@ namespace sukiNES
 	{
 		static inline void execute(Cpu* cpu)
 		{
+			cpu->tick();
 		}
 	};
 
+	template<>
+	struct NOP<ToAddressPlusX<NextWord>, void>
+	{
+		static inline void execute(Cpu* cpu)
+		{
+			ToAddressPlusX<NextWord>::read(cpu);
+			if (ToAddressPlusX<NextWord>::HasCrossedPageBoundary)
+			{
+				cpu->tick();
+			}
+		}
+	};
+
+	template<class Addressing, class B>
+	struct NOPImmediate
+	{
+		static inline void execute(Cpu* cpu)
+		{
+			Addressing::read(cpu);
+		}
+	};
 
 	template<class Addressing, class B>
 	struct BIT
@@ -641,6 +892,8 @@ namespace sukiNES
 
 			byte result = a & b;
 
+			LoadCycleTick<B>::tick(cpu);
+
 			Flag<Zero>::write(cpu, TestZero(result));
 			Flag<Negative>::write(cpu, TestNegative(result));
 
@@ -657,6 +910,8 @@ namespace sukiNES
 			byte b = B::read(cpu);
 
 			byte result = a | b;
+
+			LoadCycleTick<B>::tick(cpu);
 
 			Flag<Zero>::write(cpu, TestZero(result));
 			Flag<Negative>::write(cpu, TestNegative(result));
@@ -675,6 +930,8 @@ namespace sukiNES
 
 			byte result = a ^ b;
 
+			LoadCycleTick<B>::tick(cpu);
+
 			Flag<Zero>::write(cpu, TestZero(result));
 			Flag<Negative>::write(cpu, TestNegative(result));
 
@@ -691,6 +948,8 @@ namespace sukiNES
 			byte b = B::read(cpu);
 
 			int result = static_cast<int>(a) - static_cast<int>(b);
+
+			LoadCycleTick<B>::tick(cpu);
 
 			Flag<Zero>::write(cpu, TestZero(result));
 			Flag<Negative>::write(cpu, TestNegative(result));
@@ -709,6 +968,8 @@ namespace sukiNES
 
 			int temp = a + b + carry;
 			byte result = static_cast<byte>(temp);
+
+			LoadCycleTick<B>::tick(cpu);
 
 			Flag<Carry>::write(cpu, (temp > 0xFF));
 			Flag<Zero>::write(cpu, TestZero(result));
@@ -731,6 +992,8 @@ namespace sukiNES
 			int temp = (int)a - (int)b - (int)carry;
 			byte result = static_cast<byte>(temp);
 
+			LoadCycleTick<B>::tick(cpu);
+
 			Flag<Carry>::write(cpu, (temp >= 0 && temp < 0x100));
 			Flag<Zero>::write(cpu, TestZero(result));
 			Flag<Negative>::write(cpu, TestNegative(result));
@@ -746,11 +1009,13 @@ namespace sukiNES
 		static inline void execute(Cpu* cpu)
 		{
 			byte a = Addressing::read(cpu);
+			cpu->tick();
 			a++;
 
 			Flag<Zero>::write(cpu, TestZero(a));
 			Flag<Negative>::write(cpu, TestNegative(a));
 
+			StoreCycleTick<Addressing>::tick(cpu);
 			Addressing::write(cpu, a);
 		}
 	};
@@ -761,11 +1026,13 @@ namespace sukiNES
 		static inline void execute(Cpu* cpu)
 		{
 			byte a = Addressing::read(cpu);
+			cpu->tick();
 			a--;
 
 			Flag<Zero>::write(cpu, TestZero(a));
 			Flag<Negative>::write(cpu, TestNegative(a));
 
+			StoreCycleTick<Addressing>::tick(cpu);
 			Addressing::write(cpu, a);
 		}
 	};
@@ -776,6 +1043,7 @@ namespace sukiNES
 		static inline void execute(Cpu* cpu)
 		{
 			byte a = Source::read(cpu);
+			cpu->tick();
 
 			Flag<Zero>::write(cpu, TestZero(a));
 			Flag<Negative>::write(cpu, TestNegative(a));
@@ -790,6 +1058,7 @@ namespace sukiNES
 		static inline void execute(Cpu* cpu)
 		{
 			byte a = Register<X>::read(cpu);
+			cpu->tick();
 			Register<StackPointer>::write(cpu, a);
 		}
 	};
@@ -804,10 +1073,13 @@ namespace sukiNES
 
 			a = a >> 1;
 
+			cpu->tick();
+
 			Flag<Negative>::write(cpu, 0);
 			Flag<Carry>::write(cpu, shiffedBit);
 			Flag<Zero>::write(cpu, TestZero(a));
 
+			StoreCycleTick<Addressing>::tick(cpu);
 			Addressing::write(cpu, a);
 		}
 	};
@@ -822,10 +1094,13 @@ namespace sukiNES
 
 			a = a << 1;
 
+			cpu->tick();
+
 			Flag<Negative>::write(cpu, TestNegative(a));
 			Flag<Carry>::write(cpu, shiffedBit);
 			Flag<Zero>::write(cpu, TestZero(a));
 
+			StoreCycleTick<Addressing>::tick(cpu);
 			Addressing::write(cpu, a);
 		}
 	};
@@ -847,9 +1122,12 @@ namespace sukiNES
 
 			byte result = static_cast<byte>(temp);
 
+			cpu->tick();
+
 			Flag<Negative>::write(cpu, TestNegative(result));
 			Flag<Zero>::write(cpu, TestZero(result));
 
+			StoreCycleTick<Addressing>::tick(cpu);
 			Addressing::write(cpu, result);
 		}
 	};
@@ -870,9 +1148,12 @@ namespace sukiNES
 
 			byte result = static_cast<byte>(temp);
 
+			cpu->tick();
+
 			Flag<Negative>::write(cpu, TestNegative(result));
 			Flag<Zero>::write(cpu, TestZero(result));
 
+			StoreCycleTick<Addressing>::tick(cpu);
 			Addressing::write(cpu, result);
 		}
 	};
@@ -887,6 +1168,8 @@ namespace sukiNES
 			Register<A>::write(cpu, value);
 			Register<X>::write(cpu, value);
 
+			LoadCycleTick<Addressing>::tick(cpu);
+
 			Flag<Negative>::write(cpu, TestNegative(value));
 			Flag<Zero>::write(cpu, TestZero(value));
 		}
@@ -900,6 +1183,64 @@ namespace sukiNES
 			byte result = Register<X>::read(cpu) & Register<A>::read(cpu);
 
 			Addressing::write(cpu, result);
+
+			StoreCycleTick<Addressing>::tick(cpu);
+		}
+	};
+
+	template<class Addressing>
+	struct IllegalOpcodeTick
+	{
+		static inline void tick(Cpu* cpu)
+		{
+		}
+	};
+
+	template<>
+	struct IllegalOpcodeTick<ToAddress<NextByte, AddressBehavior::KeepAddress>>
+	{
+		static inline void tick(Cpu* cpu)
+		{
+			cpu->tick();
+		}
+	};
+
+	template<>
+	struct IllegalOpcodeTick<ToAddressPlusX<NextByte, AddressBehavior::KeepAddress>>
+	{
+		static inline void tick(Cpu* cpu)
+		{
+			cpu->tick();
+			cpu->tick();
+		}
+	};
+
+	template<>
+	struct IllegalOpcodeTick<ToAddress<NextWord, AddressBehavior::KeepAddress>>
+	{
+		static inline void tick(Cpu* cpu)
+		{
+			cpu->tick();
+		}
+	};
+
+	template<>
+	struct IllegalOpcodeTick<ToAddressPlusX<NextWord, AddressBehavior::KeepAddress>>
+	{
+		static inline void tick(Cpu* cpu)
+		{
+			cpu->tick();
+			cpu->tick();
+		}
+	};
+
+	template<>
+	struct IllegalOpcodeTick<ToAddressPlusY<NextWord, AddressBehavior::KeepAddress>>
+	{
+		static inline void tick(Cpu* cpu)
+		{
+			cpu->tick();
+			cpu->tick();
 		}
 	};
 
@@ -916,6 +1257,8 @@ namespace sukiNES
 			Flag<Zero>::write(cpu, TestZero(result));
 			Flag<Negative>::write(cpu, TestNegative(result));
 			Flag<Carry>::write(cpu, (result >= 0) ? 1 : 0);
+
+			IllegalOpcodeTick<Addressing>::tick(cpu);
 
 			Addressing::write(cpu, a);
 		}
@@ -935,6 +1278,8 @@ namespace sukiNES
 
 			int temp = (int)b - (int)a - (int)carry;
 			byte result = static_cast<byte>(temp);
+
+			IllegalOpcodeTick<Addressing>::tick(cpu);
 
 			Flag<Carry>::write(cpu, (temp >= 0 && temp < 0x100));
 			Flag<Zero>::write(cpu, TestZero(result));
@@ -964,6 +1309,8 @@ namespace sukiNES
 			byte b = Register<A>::read(cpu);
 
 			byte result = a | b;
+
+			IllegalOpcodeTick<Addressing>::tick(cpu);
 
 			Flag<Zero>::write(cpu, TestZero(result));
 			Flag<Negative>::write(cpu, TestNegative(result));
@@ -998,6 +1345,8 @@ namespace sukiNES
 			byte b = result;
 
 			result = a & b;
+
+			IllegalOpcodeTick<Addressing>::tick(cpu);
 
 			Flag<Zero>::write(cpu, TestZero(result));
 			Flag<Negative>::write(cpu, TestNegative(result));
@@ -1034,6 +1383,8 @@ namespace sukiNES
 			int temp2 = a + b + carry;
 			result = static_cast<byte>(temp2);
 
+			IllegalOpcodeTick<Addressing>::tick(cpu);
+
 			Flag<Carry>::write(cpu, (temp2 > 0xFF));
 			Flag<Zero>::write(cpu, TestZero(result));
 			Flag<Negative>::write(cpu, TestNegative(result));
@@ -1063,6 +1414,8 @@ namespace sukiNES
 
 			byte result = b ^ a;
 
+			IllegalOpcodeTick<Addressing>::tick(cpu);
+
 			Flag<Zero>::write(cpu, TestZero(result));
 			Flag<Negative>::write(cpu, TestNegative(result));
 
@@ -1082,6 +1435,10 @@ namespace sukiNES
 		_registers.ProcessorStatus.Unused = true;
 
 		_setupInstructions();
+
+#ifdef SUKINES_DEBUG
+		_totalTick = 0;
+#endif
 	}
 
 	Cpu::~Cpu()
@@ -1090,9 +1447,13 @@ namespace sukiNES
 
 	void Cpu::executeOpcode()
 	{
+		#ifdef SUKINES_DEBUG
+			_totalTick = 0;
+		#endif
+
 		sukiAssertWithMessage(_memory, "Please setup a memory for the CPU");
 
-		byte opcode = _memory->read(_registers.ProgramCounter);
+		byte opcode = readMemory(_registers.ProgramCounter);
 
 		if (_instructions[opcode])
 		{
@@ -1146,12 +1507,28 @@ namespace sukiNES
 
 	byte Cpu::readMemory(word address)
 	{
+		tick();
 		return _memory->read(address);
 	}
 
 	void Cpu::writeMemory(word address, byte value)
 	{
+		tick();
 		_memory->write(address, value);
+	}
+
+	void Cpu::tick()
+	{
+#ifdef SUKINES_DEBUG
+		_totalTick++;
+#endif
+		sukiAssertWithMessage(_ppu, "Please set the PPU in the CPU");
+
+		// PPU is running 3 times faster than the CPU
+		for(int i=0; i<3; i++)
+		{
+			_ppu->tick();
+		}
 	}
 
 	void Cpu::_setupInstructions()
@@ -1332,27 +1709,27 @@ namespace sukiNES
 		// Illegal opcodes
 		registerOpcode< 0x04, Instruction<NOP, NextByte, void> >();
 		registerOpcode< 0x0C, Instruction<NOP, NextWord, void> >();
-		registerOpcode< 0x14, Instruction<NOP, NextByte, void> >();
+		registerOpcode< 0x14, Instruction<NOP, ToAddressPlusX<NextByte>, void> >();
 		registerOpcode< 0x1A, Instruction<NOP, void, void> >();
-		registerOpcode< 0x1C, Instruction<NOP, NextWord, void> >();
-		registerOpcode< 0x34, Instruction<NOP, NextByte, void> >();
+		registerOpcode< 0x1C, Instruction<NOP, ToAddressPlusX<NextWord>, void> >();
+		registerOpcode< 0x34, Instruction<NOP, ToAddressPlusX<NextByte>, void> >();
 		registerOpcode< 0x3A, Instruction<NOP, void, void> >();
-		registerOpcode< 0x3C, Instruction<NOP, NextWord, void> >();
+		registerOpcode< 0x3C, Instruction<NOP, ToAddressPlusX<NextWord>, void> >();
 		registerOpcode< 0x44, Instruction<NOP, NextByte, void> >();
-		registerOpcode< 0x54, Instruction<NOP, NextByte, void> >();
+		registerOpcode< 0x54, Instruction<NOP, ToAddressPlusX<NextByte>, void> >();
 		registerOpcode< 0x5A, Instruction<NOP, void, void> >();
-		registerOpcode< 0x5C, Instruction<NOP, NextWord, void> >();
+		registerOpcode< 0x5C, Instruction<NOP, ToAddressPlusX<NextWord>, void> >();
 		registerOpcode< 0x64, Instruction<NOP, NextByte, void> >();
-		registerOpcode< 0x74, Instruction<NOP, NextByte, void> >();
+		registerOpcode< 0x74, Instruction<NOP, ToAddressPlusX<NextByte>, void> >();
 		registerOpcode< 0x7A, Instruction<NOP, void, void> >();
-		registerOpcode< 0x7C, Instruction<NOP, NextWord, void> >();
-		registerOpcode< 0x80, Instruction<NOP, NextByte, void> >();
-		registerOpcode< 0xD4, Instruction<NOP, NextByte, void> >();
+		registerOpcode< 0x7C, Instruction<NOP, ToAddressPlusX<NextWord>, void> >();
+		registerOpcode< 0x80, Instruction<NOPImmediate, NextByte, void> >();
+		registerOpcode< 0xD4, Instruction<NOP, ToAddressPlusX<NextByte>, void> >();
 		registerOpcode< 0xDA, Instruction<NOP, void, void> >();
-		registerOpcode< 0xDC, Instruction<NOP, NextWord, void> >();
-		registerOpcode< 0xF4, Instruction<NOP, NextByte, void> >();
+		registerOpcode< 0xDC, Instruction<NOP, ToAddressPlusX<NextWord>, void> >();
+		registerOpcode< 0xF4, Instruction<NOP, ToAddressPlusX<NextByte>, void> >();
 		registerOpcode< 0xFA, Instruction<NOP, void, void> >();
-		registerOpcode< 0xFC, Instruction<NOP, NextWord, void> >();
+		registerOpcode< 0xFC, Instruction<NOP, ToAddressPlusX<NextWord>, void> >();
 
 		registerOpcode< 0xA3, Instruction<LAX, IndirectXAddress<NextByte>, void> >();
 		registerOpcode< 0xA7, Instruction<LAX, ToAddress<NextByte>, void> >();

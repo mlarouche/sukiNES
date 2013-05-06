@@ -18,6 +18,7 @@
     <ClInclude Include="mainmemory.h" />
     <ClInclude Include="memory.h" />
     <ClInclude Include="platform_support.h" />
+    <ClInclude Include="ppu.h" />
     <ClInclude Include="types.h" />
   </ItemGroup>
   <ItemGroup>
@@ -26,6 +27,7 @@
     <ClCompile Include="gamepak.cpp" />
     <ClCompile Include="inesreader.cpp" />
     <ClCompile Include="mainmemory.cpp" />
+    <ClCompile Include="ppu.cpp" />
     <ClCompile Include="types.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

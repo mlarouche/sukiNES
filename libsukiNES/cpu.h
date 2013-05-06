@@ -27,6 +27,7 @@ namespace sukiNES
 	};
 
 	class IMemory;
+	class PPU;
 
 	class Cpu
 	{
@@ -39,6 +40,11 @@ namespace sukiNES
 		void setMainMemory(IMemory* memory)
 		{
 			_memory = memory;
+		}
+
+		void setPPU(PPU* ppu)
+		{
+			_ppu = ppu;
 		}
 
 		word programCounter() const
@@ -75,6 +81,8 @@ namespace sukiNES
 			return _registers;
 		}
 
+		void tick();
+
 		template<int>
 		friend struct Flag;
 
@@ -83,6 +91,10 @@ namespace sukiNES
 
 		friend struct NextByte;
 		friend struct NextWord;
+
+#ifdef SUKINES_DEBUG
+		int _totalTick;
+#endif
 
 	private:
 		template<byte Opcode, class Instruction>
@@ -96,6 +108,7 @@ namespace sukiNES
 	private:
 		CpuRegisters _registers;
 		IMemory* _memory;
+		PPU* _ppu;
 
 		std::function<void(Cpu*)> _instructions[256];
 	};

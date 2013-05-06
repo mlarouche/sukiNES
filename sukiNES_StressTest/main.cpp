@@ -8,8 +8,9 @@
 // sukiNES includes
 #include <cpu.h>
 #include <gamepak.h>
-#include <mainmemory.h>
 #include <inesreader.h>
+#include <mainmemory.h>
+#include <ppu.h>
 
 #ifdef SUKINES_PLATFORM_WINDOWS
 #include <windows.h>
@@ -50,18 +51,25 @@ public:
 	NesStressTest()
 	: _failureMessage(nullptr)
 	, _currentLine(1)
+	, _expectedCyclesCount(0)
+	, _expectedScanline(0)
 	{
 		// Setup MainMemory
 		_memory.setGamepakMemory(&_gamePak);
+		_memory.setPpuMemory(&_ppu);
 
 		// Setup memory in CPU
 		_cpu.setMainMemory(&_memory);
+		_cpu.setPPU(&_ppu);
 
 		// Set initial state of the CPU
 		_cpu.setProgramCounter(0xC000);
 		_cpu.disableInterrupt();
 		_cpu.push(0x00);
 		_cpu.push(0x00);
+
+		// Set initial state of the PPU
+		_ppu.forceCurrentScanline(241);
 	}
 
 	~NesStressTest()
@@ -111,6 +119,14 @@ public:
 			assertIsEqual(currentRegisters.ProcessorStatus.raw, _expectedRegisters.ProcessorStatus.raw, "Processor Status not equal");
 			assertIsEqual(currentRegisters.StackPointer, _expectedRegisters.StackPointer, "Stack pointer not equal");
 
+			// Check PPU cycles and scanline count
+			auto currentCyclesCount = _ppu.cyclesCountPerScanline();
+			auto currentScanline = _ppu.currentScanline();
+
+			assertIsEqual(currentCyclesCount, _expectedCyclesCount, "PPU cycles count not equal");
+			assertIsEqual(currentScanline, _expectedScanline, "PPU scanline not equal");
+
+			// Execute next instruction
 			_cpu.executeOpcode();
 
 			_currentLine++;
@@ -177,6 +193,14 @@ private:
 		// Decode SP
 		tempSubstring = _lineBuffer.substr(Index_SP, 2);
 		_expectedRegisters.StackPointer = static_cast<byte>(stringToNumber(tempSubstring));
+
+		// Decode PPU cycles
+		tempSubstring = _lineBuffer.substr(Index_Cycle, 3);
+		_expectedCyclesCount = atoi(tempSubstring.c_str());
+
+		// Decode scanline
+		tempSubstring = _lineBuffer.substr(Index_Scanline, 3);
+		_expectedScanline = atoi(tempSubstring.c_str());
 	}
 
 	uint32 stringToNumber(const std::string &text)
@@ -235,11 +259,14 @@ private:
 	sukiNES::Cpu _cpu;
 	sukiNES::MainMemory _memory;
 	sukiNES::GamePak _gamePak;
+	sukiNES::PPU _ppu;
 
 	char* _failureMessage;
 	std::string _lineBuffer;
 	uint32 _currentLine;
 	sukiNES::CpuRegisters _expectedRegisters;
+	uint32 _expectedCyclesCount;
+	sint32 _expectedScanline;
 };
 
 int main(int argc, char** argv)
