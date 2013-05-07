@@ -5,18 +5,39 @@
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
-    <Filter Include="Header Files">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    <Filter Include="Framework">
+      <UniqueIdentifier>{b7c17a48-46d6-4ce5-9b25-8e5d8a248682}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Resource Files">
-      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
-      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    <Filter Include="Tests">
+      <UniqueIdentifier>{63cf588a-dd64-41d4-b5d3-7cadf3ce5350}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="test.cpp">
+      <Filter>Framework</Filter>
+    </ClCompile>
+    <ClCompile Include="testrunner.cpp">
+      <Filter>Framework</Filter>
+    </ClCompile>
+    <ClCompile Include="nestest.cpp">
+      <Filter>Tests</Filter>
+    </ClCompile>
+    <ClCompile Include="blagg_palette_ram.cpp">
+      <Filter>Tests</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="test.h">
+      <Filter>Framework</Filter>
+    </ClInclude>
+    <ClInclude Include="testrunner.h">
+      <Filter>Framework</Filter>
+    </ClInclude>
+    <ClInclude Include="singleton.h">
+      <Filter>Framework</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

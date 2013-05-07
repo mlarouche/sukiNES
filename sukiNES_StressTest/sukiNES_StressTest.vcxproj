@@ -78,7 +78,16 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="blagg_palette_ram.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="nestest.cpp" />
+    <ClCompile Include="test.cpp" />
+    <ClCompile Include="testrunner.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="singleton.h" />
+    <ClInclude Include="test.h" />
+    <ClInclude Include="testrunner.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
