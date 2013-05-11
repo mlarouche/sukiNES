@@ -1445,6 +1445,28 @@ namespace sukiNES
 	{
 	}
 
+	void Cpu::powerOn()
+	{
+		_registers.StackPointer = 0xFF;
+		_registers.A = 0;
+		_registers.X = 0;
+		_registers.Y = 0;
+		_registers.ProgramCounter = 0;
+		_registers.ProcessorStatus.raw = 0;
+		_registers.ProcessorStatus.Unused = true;
+
+		reset();
+	}
+
+	void Cpu::reset()
+	{
+		word resetVector;
+		resetVector.setLowByte( _memory->read(0xFFFC) );
+		resetVector.setHighByte( _memory->read(0xFFFD) );
+
+		_registers.ProgramCounter = resetVector;
+	}
+
 	void Cpu::executeOpcode()
 	{
 		#ifdef SUKINES_DEBUG

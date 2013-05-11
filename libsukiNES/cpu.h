@@ -35,6 +35,9 @@ namespace sukiNES
 		Cpu();
 		~Cpu();
 
+		void powerOn();
+		void reset();
+
 		void executeOpcode();
 
 		void setMainMemory(IMemory* memory)

@@ -105,7 +105,7 @@ protected:
 	{
 		if (!_lineBuffer.empty())
 		{
-			fprintf(stderr, "At line %d: %s\n", _currentLine, _lineBuffer.c_str());
+			fprintf(stderr, " at line %d: %s\n", _currentLine, _lineBuffer.c_str());
 		}
 	}
 

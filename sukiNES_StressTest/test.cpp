@@ -44,6 +44,13 @@ namespace StressTest
 	{
 	}
 
+	void Test::_generateFailureMessage(const char* message)
+	{
+		_allocateFailureMessage();
+
+		sprintf(_failureMessage, message);
+	}
+
 	void Test::_allocateFailureMessage()
 	{
 		if(_failureMessage)

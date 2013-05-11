@@ -32,7 +32,16 @@ namespace sukiNES
 		}
 
 	private:
+		byte _internalRead(word ppuAddress);
+		void _internalWrite(word ppuAddress, byte value);
+
+	private:
 		uint32 _cycleCountPerScanline;
 		sint32 _currentScaline;
+
+		word _currentPpuAddress;
+		bool _firstWrite;
+
+		byte _palette[32];
 	};
 }

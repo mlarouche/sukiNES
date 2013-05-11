@@ -59,6 +59,8 @@ namespace StressTest
 	protected:
 		virtual void printExtraFailureMessage();
 
+		void _generateFailureMessage(const char* message);
+
 		template<typename T1>
 		void _generateFailureMessage(const char* message, T1 filename);
 
