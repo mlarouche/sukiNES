@@ -78,13 +78,16 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="blaggtestrombase.cpp" />
     <ClCompile Include="blagg_palette_ram.cpp" />
+    <ClCompile Include="blagg_power_up_palette.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="nestest.cpp" />
     <ClCompile Include="test.cpp" />
     <ClCompile Include="testrunner.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="blaggtestrombase.h" />
     <ClInclude Include="singleton.h" />
     <ClInclude Include="test.h" />
     <ClInclude Include="testrunner.h" />

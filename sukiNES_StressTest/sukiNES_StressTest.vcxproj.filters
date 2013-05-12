@@ -28,6 +28,12 @@
     <ClCompile Include="blagg_palette_ram.cpp">
       <Filter>Tests</Filter>
     </ClCompile>
+    <ClCompile Include="blaggtestrombase.cpp">
+      <Filter>Tests</Filter>
+    </ClCompile>
+    <ClCompile Include="blagg_power_up_palette.cpp">
+      <Filter>Tests</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="test.h">
@@ -38,6 +44,9 @@
     </ClInclude>
     <ClInclude Include="singleton.h">
       <Filter>Framework</Filter>
+    </ClInclude>
+    <ClInclude Include="blaggtestrombase.h">
+      <Filter>Tests</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
