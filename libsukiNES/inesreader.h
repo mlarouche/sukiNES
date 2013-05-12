@@ -3,6 +3,7 @@
 namespace sukiNES
 {
 	class GamePak;
+	class PPU;
 
 	class iNESReader
 	{
@@ -17,7 +18,13 @@ namespace sukiNES
 			_gamePak = gamepak;
 		}
 
+		void setPpu(PPU* ppu)
+		{
+			_ppu = ppu;
+		}
+
 	private:
 		GamePak* _gamePak;
+		PPU* _ppu;
 	};
 }

@@ -34,6 +34,9 @@
     <ClCompile Include="blagg_power_up_palette.cpp">
       <Filter>Tests</Filter>
     </ClCompile>
+    <ClCompile Include="blagg_vram_access.cpp">
+      <Filter>Tests</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="test.h">

@@ -7,6 +7,7 @@
 // Local includes
 #include "assert.h"
 #include "gamepak.h"
+#include "ppu.h"
 
 static const char iNESHeader[] = "NES\x1a";
 
@@ -57,6 +58,7 @@ namespace sukiNES
 
 	iNESReader::iNESReader()
 	: _gamePak(nullptr)
+	, _ppu(nullptr)
 	{
 	}
 
@@ -101,15 +103,15 @@ namespace sukiNES
 
 		// TODO: Map mapper number to board type
 
-		MirroringType mirroring;
+		byte mirroring;
 
 		if (controlByte1 & SUKINES_BIT(3))
 		{
-			mirroring = MirroringType::FourScren;
+			mirroring = static_cast<byte>(PPU::NameTableMirroring::FourScreen);
 		}
 		else
 		{
-			mirroring = (controlByte1 & SUKINES_BIT(0)) ? MirroringType::Vertical : MirroringType::Horizontal;
+			mirroring = static_cast<byte>( (controlByte1 & SUKINES_BIT(0)) ?  PPU::NameTableMirroring::Vertical : PPU::NameTableMirroring::Horizontal );
 		}
 
 		_gamePak->setMirroring(mirroring);
@@ -130,6 +132,11 @@ namespace sukiNES
 		file.read(chrData.get(), sizeof(byte), chrDataSize);
 
 		_gamePak->setChrData(std::move(chrData));
+
+		if (_ppu)
+		{
+			_ppu->setNametableMirroring(static_cast<PPU::NameTableMirroring>(mirroring));
+		}
 
 		return true;
 	}

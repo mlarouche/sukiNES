@@ -20,14 +20,14 @@ namespace StressTest
 
 		void registerTest(TestCreatorFunctionPointer testCreator);
 
-		static int run();
+		static int run(int argc, char** argv);
 		
 		friend class Singleton<TestRunner>;
 
 	private:
 		TestRunner();
 
-		int _internalRun();
+		int _internalRun(int argc, char** argv);
 
 	private:
 		std::vector<TestCreatorFunctionPointer> _tests;

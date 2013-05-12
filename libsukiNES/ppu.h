@@ -31,6 +31,20 @@ namespace sukiNES
 			return _currentScaline;
 		}
 
+		enum class NameTableMirroring
+		{
+			Horizontal,
+			Vertical,
+			FourScreen,
+			SingleScreen,
+			ChrRomMirroring
+		};
+
+		void setNametableMirroring(NameTableMirroring value)
+		{
+			_nametableMirroring = value;
+		}
+
 	private:
 		byte _internalRead(word ppuAddress);
 		void _internalWrite(word ppuAddress, byte value);
@@ -41,7 +55,11 @@ namespace sukiNES
 
 		word _currentPpuAddress;
 		bool _firstWrite;
+		byte _readBuffer;
 
 		byte _palette[32];
+
+		NameTableMirroring _nametableMirroring;
+		byte _nametable[SUKINES_KB(2)];
 	};
 }

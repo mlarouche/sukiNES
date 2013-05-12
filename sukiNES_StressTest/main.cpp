@@ -14,5 +14,5 @@ int main(int argc, char** argv)
 	atexit(showpause);
 #endif
 
-	return StressTest::TestRunner::run();
+	return StressTest::TestRunner::run(argc, argv);
 }

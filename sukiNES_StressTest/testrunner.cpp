@@ -19,12 +19,12 @@ namespace StressTest
 		_tests.push_back(testCreatorFunction);
 	}
 
-	int TestRunner::run()
+	int TestRunner::run(int argc, char** argv)
 	{
-		return TestRunner::self()._internalRun();
+		return TestRunner::self()._internalRun(argc, argv);
 	}
 
-	int TestRunner::_internalRun()
+	int TestRunner::_internalRun(int argc, char** argv)
 	{
 		int returnCode = 0;
 
@@ -33,6 +33,16 @@ namespace StressTest
 			auto test = testCreatorFunction();
 			if (test)
 			{
+				if (argc > 0)
+				{
+					auto arg = argv[1];
+					auto testName = test->testName();
+					if (strcmp(arg, testName) != 0)
+					{
+						continue;
+					}
+				}
+
 				bool result = test->run();
 				if (!result)
 				{

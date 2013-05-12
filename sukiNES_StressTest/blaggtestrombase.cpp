@@ -25,6 +25,7 @@ bool BlaggTestRomBase::run()
 {
 	sukiNES::iNESReader nesReader;
 	nesReader.setGamePak(&_gamePak);
+	nesReader.setPpu(&_ppu);
 
 	if (!nesReader.read(_romFilename))
 	{

@@ -6,7 +6,7 @@ namespace sukiNES
 
 	GamePak::GamePak()
 	: _chrBank(nullptr)
-	, _mirroring(MirroringType::Horizontal)
+	, _mirroring(0)
 	, _hasSaveRam(false)
 	{
 		_romBank[0] = nullptr;

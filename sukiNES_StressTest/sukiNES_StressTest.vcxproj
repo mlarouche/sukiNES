@@ -81,6 +81,7 @@
     <ClCompile Include="blaggtestrombase.cpp" />
     <ClCompile Include="blagg_palette_ram.cpp" />
     <ClCompile Include="blagg_power_up_palette.cpp" />
+    <ClCompile Include="blagg_vram_access.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="nestest.cpp" />
     <ClCompile Include="test.cpp" />

@@ -11,13 +11,6 @@ namespace sukiNES
 	static const uint32 RomBankSize = SUKINES_KB(16);
 	static const uint32 ChrBankSize = SUKINES_KB(8);
 
-	enum class MirroringType
-	{
-		Horizontal,
-		Vertical,
-		FourScren
-	};
-
 	class GamePak : public IMemory
 	{
 	public:
@@ -45,12 +38,12 @@ namespace sukiNES
 			_hasSaveRam = value;
 		}
 
-		MirroringType mirroring() const
+		byte mirroring() const
 		{
 			return _mirroring;
 		}
 
-		void setMirroring(MirroringType value)
+		void setMirroring(byte value)
 		{
 			_mirroring = value;
 		}
@@ -82,7 +75,7 @@ namespace sukiNES
 		byte* _romBank[2];
 		byte* _chrBank;
 
-		MirroringType _mirroring;
+		byte _mirroring;
 		bool _hasSaveRam;
 		uint32 _mapper;
 	};
