@@ -24,20 +24,13 @@ namespace sukiNES
 	{
 		static inline byte read(Cpu* cpu)
 		{
-			return (cpu->_registers.ProcessorStatus.raw & SUKINES_BIT(FlagBit)) ? 1 : 0;
+			return (cpu->_registers.ProcessorStatus.raw & SUKINES_BIT(FlagBit)) >> FlagBit;
 		}
 
 		static inline void write(Cpu* cpu, byte value)
 		{
-			switch(value)
-			{
-			case 0:
-				cpu->_registers.ProcessorStatus.raw &= ~SUKINES_BIT(FlagBit);
-				break;
-			default:
-				cpu->_registers.ProcessorStatus.raw |= SUKINES_BIT(FlagBit);
-				break;
-			}
+			cpu->_registers.ProcessorStatus.raw = (cpu->_registers.ProcessorStatus.raw & ~SUKINES_BIT(FlagBit)) |
+				((!!value) << FlagBit);
 		}
 	};
 
