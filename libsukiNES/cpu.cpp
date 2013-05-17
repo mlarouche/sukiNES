@@ -1536,7 +1536,15 @@ namespace sukiNES
 	void Cpu::writeMemory(word address, byte value)
 	{
 		tick();
-		_memory->write(address, value);
+		// Start DMA copy
+		if (address == 0x4014)
+		{
+			dmaCopy(value);
+		}
+		else
+		{
+			_memory->write(address, value);
+		}
 	}
 
 	void Cpu::tick()
@@ -1550,6 +1558,24 @@ namespace sukiNES
 		for(int i=0; i<3; i++)
 		{
 			_ppu->tick();
+		}
+	}
+
+	void Cpu::dmaCopy(byte memoryPage)
+	{
+		word ramAddress;
+		ramAddress.setHighByte(memoryPage);
+		ramAddress.setLowByte(0);
+
+		word oamDataAddress;
+		oamDataAddress.setHighByte(0x20);
+		oamDataAddress.setLowByte(0x04);
+
+		for(uint32 i=0; i<256; ++i)
+		{
+			byte readValue = readMemory(ramAddress);
+			writeMemory(oamDataAddress, readValue);
+			ramAddress++;
 		}
 	}
 

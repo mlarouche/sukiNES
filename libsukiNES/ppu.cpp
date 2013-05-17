@@ -8,9 +8,11 @@ namespace sukiNES
 	static const uint32 PpuMirroringMask = 0x4000 - 1;
 	static const byte PpuRegisterMask = 0x7;
 	static const byte PaletteMask = 0x1F;
+	static const byte OamDataAttributeReadMask = 0xE3;
 	static const uint32 NametableAddressMask = 0xFFF;
 	static const uint32 NametableHorizontalMask = 0x3FF;
 	static const uint32 NametableVerticalMask = 0x7FF;
+	static const uint32 NametableSingleScreenMask = 0x3FF;
 
 	static byte PaletteAtPowerOn[32] = {
 		0x9,0x1,0x0,0x1,0x0,0x2,0x2,0xD,0x8,0x10,0x8,0x24,0x0,0x0,0x4,0x2C,
@@ -30,11 +32,14 @@ namespace sukiNES
 	};
 
 	PPU::PPU()
-	: _cycleCountPerScanline(0)
+	: _rawOAM(nullptr)
+	, _oamAddress(0)
+	, _cycleCountPerScanline(0)
 	, _currentScaline(0)
 	, _firstWrite(true)
 	, _readBuffer(0xFF)
 	{
+		_rawOAM = reinterpret_cast<byte*>(_sprites);
 		memcpy(_palette, PaletteAtPowerOn, sizeof(PaletteAtPowerOn) / sizeof(byte));
 	}
 
@@ -52,9 +57,11 @@ namespace sukiNES
 		case PpuRegister::PpuStatus:
 			_firstWrite = true;
 			return 1 << 7;
+		case PpuRegister::OamData:
+			return ((_oamAddress+1) % 3 == 0) ? _rawOAM[_oamAddress] & OamDataAttributeReadMask : _rawOAM[_oamAddress];
 		case PpuRegister::PpuData:
 			byte readValue = _internalRead(_currentPpuAddress);
-			_currentPpuAddress++;
+			++_currentPpuAddress;
 			return readValue;
 		}
 
@@ -67,13 +74,20 @@ namespace sukiNES
 
 		switch(ppuRegister)
 		{
+		case PpuRegister::OamAddress:
+			_oamAddress = value;
+			break;
+		case PpuRegister::OamData:
+			_rawOAM[_oamAddress] = value;
+			++_oamAddress;
+			break;
 		case PpuRegister::PpuAddress:
 			_firstWrite ? _currentPpuAddress.setHighByte(value) : _currentPpuAddress.setLowByte(value);
 			_firstWrite = !_firstWrite;
 			break;
 		case PpuRegister::PpuData:
 			_internalWrite(_currentPpuAddress, value);
-			_currentPpuAddress++;
+			++_currentPpuAddress;
 			break;
 		}
 	}
@@ -113,6 +127,7 @@ namespace sukiNES
 				case PPU::NameTableMirroring::FourScreen:
 					break;
 				case PPU::NameTableMirroring::SingleScreen:
+					_readBuffer = _nametable[nameTableAddress & NametableSingleScreenMask];
 					break;
 			}
 		}
@@ -148,6 +163,7 @@ namespace sukiNES
 				case PPU::NameTableMirroring::FourScreen:
 					break;
 				case PPU::NameTableMirroring::SingleScreen:
+					_nametable[nameTableAddress & NametableSingleScreenMask] = value;
 					break;
 			}
 		}

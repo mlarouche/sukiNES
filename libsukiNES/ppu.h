@@ -50,6 +50,33 @@ namespace sukiNES
 		void _internalWrite(word ppuAddress, byte value);
 
 	private:
+		struct OAMEntry
+		{
+			OAMEntry()
+			: y(0)
+			, tileIndex(0)
+			, x(0)
+			{
+				attributes.raw = 0;
+			}
+
+			byte y;
+			byte tileIndex;
+			union
+			{
+				byte raw;
+				RegBit<0, 2> palette;
+				RegBit<2, 3> unimplemented;
+				RegBit<5> priority;
+				RegBit<6> flipHorizontal;
+				RegBit<7> flipVertical;
+			} attributes;
+			byte x;
+		} _sprites[64];
+
+		byte* _rawOAM;
+		byte _oamAddress;
+
 		uint32 _cycleCountPerScanline;
 		sint32 _currentScaline;
 

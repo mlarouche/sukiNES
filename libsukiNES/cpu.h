@@ -100,6 +100,8 @@ namespace sukiNES
 #endif
 
 	private:
+		void dmaCopy(byte memoryPage);
+
 		template<byte Opcode, class Instruction>
 		void registerOpcode()
 		{

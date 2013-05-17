@@ -33,7 +33,7 @@ namespace StressTest
 			auto test = testCreatorFunction();
 			if (test)
 			{
-				if (argc > 0)
+				if (argc > 1)
 				{
 					auto arg = argv[1];
 					auto testName = test->testName();
