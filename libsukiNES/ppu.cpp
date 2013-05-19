@@ -1,9 +1,14 @@
 #include "ppu.h"
 
+// Local includes
+#include "gamepak.h"
+
 namespace sukiNES
 {
 	static const uint32 CyclesPerScanline = 340;
 	static const sint32 ScanlinePerFrame = 260;
+	static const sint32 PostRenderScanline = 240;
+	static const sint32 PreRenderScanline = -1;
 
 	static const uint32 PpuMirroringMask = 0x4000 - 1;
 	static const byte PpuRegisterMask = 0x7;
@@ -36,9 +41,10 @@ namespace sukiNES
 	, _rawOAM(nullptr)
 	, _oamAddress(0)
 	, _cycleCountPerScanline(0)
-	, _currentScaline(0)
+	, _currentScanline(PreRenderScanline)
 	, _firstWrite(true)
 	, _readBuffer(0xFF)
+	, _gamePak(nullptr)
 	{
 		_ppuControl.raw = 0;
 		_ppuMask.raw = 0;
@@ -59,17 +65,19 @@ namespace sukiNES
 
 		switch(ppuRegister)
 		{
-			// For now, always return that the VBL is ready
-		case PpuRegister::PpuStatus:
-			_firstWrite = true;
-			_ppuStatus.vblankStarted = true;
-			return _ppuStatus.raw;
-		case PpuRegister::OamData:
-			return ((_oamAddress+1) % 3 == 0) ? _rawOAM[_oamAddress] & OamDataAttributeReadMask : _rawOAM[_oamAddress];
-		case PpuRegister::PpuData:
-			byte readValue = _internalRead(_currentPpuAddress);
-			(unsigned)_ppuControl.addressIncrement ? _currentPpuAddress += 32 : ++_currentPpuAddress;
-			return readValue;
+			case PpuRegister::PpuStatus:
+			{
+				_firstWrite = true;
+				auto ppuStatus = _ppuStatus.raw;
+				_ppuStatus.vblankStarted = false;
+				return ppuStatus;
+			}
+			case PpuRegister::OamData:
+				return ((_oamAddress+1) % 3 == 0) ? _rawOAM[_oamAddress] & OamDataAttributeReadMask : _rawOAM[_oamAddress];
+			case PpuRegister::PpuData:
+				byte readValue = _internalRead(_currentPpuAddress);
+				(unsigned)_ppuControl.addressIncrement ? _currentPpuAddress += 32 : ++_currentPpuAddress;
+				return readValue;
 		}
 
 		return 0;
@@ -81,65 +89,95 @@ namespace sukiNES
 
 		switch(ppuRegister)
 		{
-		case PpuRegister::PpuControl:
-			_ppuControl.raw = value;
-			_temporaryPpuAddress.nametableSelect = (unsigned)_ppuControl.baseNametableAddress;
-			break;
-		case PpuRegister::PpuMask:
-			_ppuMask.raw = value;
-			break;
-		case PpuRegister::OamAddress:
-			_oamAddress = value;
-			break;
-		case PpuRegister::OamData:
-			_rawOAM[_oamAddress] = value;
-			++_oamAddress;
-			break;
-		case PpuRegister::Scroll:
-			if (_firstWrite)
-			{
-				_temporaryPpuAddress.coarseXScroll = (value & 0xF8) >> 3;
-				_fineXScroll = value & 0x7;
-				_firstWrite = !_firstWrite;
+			case PpuRegister::PpuControl:
+				_ppuControl.raw = value;
+				_temporaryPpuAddress.nametableSelect = (unsigned)_ppuControl.baseNametableAddress;
+				break;
+			case PpuRegister::PpuMask:
+				_ppuMask.raw = value;
+				break;
+			case PpuRegister::OamAddress:
+				_oamAddress = value;
+				break;
+			case PpuRegister::OamData:
+				_rawOAM[_oamAddress] = value;
+				++_oamAddress;
+				break;
+			case PpuRegister::Scroll:
+				if (_firstWrite)
+				{
+					_temporaryPpuAddress.coarseXScroll = (value & 0xF8) >> 3;
+					_fineXScroll = value & 0x7;
+					_firstWrite = !_firstWrite;
+				}
+				else
+				{
+					_temporaryPpuAddress.coarseYScroll = (value & 0xF8) >> 3;
+					_temporaryPpuAddress.fineYScroll = value & 0x7;
+					_firstWrite = !_firstWrite;
+				}
+				break;
+			case PpuRegister::PpuAddress:
+				if (_firstWrite)
+				{
+					_temporaryPpuAddress.highByteAddress = value & 0x3F;
+					_temporaryPpuAddress.clearBit14 = 0;
+					_firstWrite = !_firstWrite;
+				}
+				else
+				{
+					_temporaryPpuAddress.lowByteAddress = value;
+					_currentPpuAddress = _temporaryPpuAddress.raw;
+					_firstWrite = !_firstWrite;
+				}
+				break;
+			case PpuRegister::PpuData:
+				_internalWrite(_currentPpuAddress, value);
+				(unsigned)_ppuControl.addressIncrement ? _currentPpuAddress += 32 : ++_currentPpuAddress;
+				break;
 			}
-			else
-			{
-				_temporaryPpuAddress.coarseYScroll = (value & 0xF8) >> 3;
-				_temporaryPpuAddress.fineYScroll = value & 0x7;
-				_firstWrite = !_firstWrite;
-			}
-			break;
-		case PpuRegister::PpuAddress:
-			if (_firstWrite)
-			{
-				_temporaryPpuAddress.highByteAddress = value & 0x3F;
-				_temporaryPpuAddress.clearBit14 = 0;
-				_firstWrite = !_firstWrite;
-			}
-			else
-			{
-				_temporaryPpuAddress.lowByteAddress = value;
-				_currentPpuAddress = _temporaryPpuAddress.raw;
-				_firstWrite = !_firstWrite;
-			}
-			break;
-		case PpuRegister::PpuData:
-			_internalWrite(_currentPpuAddress, value);
-			(unsigned)_ppuControl.addressIncrement ? _currentPpuAddress += 32 : ++_currentPpuAddress;
-			break;
-		}
 	}
 
 	void PPU::tick()
+	{
+		// See http://wiki.nesdev.com/w/images/d/d1/Ntsc_timing.png
+		// and http://wiki.nesdev.com/w/index.php/PPU_rendering
+		// for more details on how this works.
+
+		if(_currentScanline == PreRenderScanline)
+		{
+			if (_cycleCountPerScanline == 1)
+			{
+				_ppuStatus.raw = 0;
+			}
+		}
+		else if (_currentScanline == PostRenderScanline)
+		{
+			// Do nothing
+		}
+		else if (_currentScanline >= 241 && _currentScanline < 260)
+		{
+			// In VBlank
+			if (_currentScanline == 241 && _cycleCountPerScanline == 1)
+			{
+				_ppuStatus.vblankStarted = true;
+				// TODO: Start NMI in CPU
+			}
+		}
+		
+		_incrementCycleAndScanline();
+	}
+
+	void PPU::_incrementCycleAndScanline()
 	{
 		_cycleCountPerScanline++;
 		if (_cycleCountPerScanline > CyclesPerScanline)
 		{
 			_cycleCountPerScanline = 0;
-			_currentScaline++;
-			if (_currentScaline > ScanlinePerFrame)
+			_currentScanline++;
+			if (_currentScanline > ScanlinePerFrame)
 			{
-				_currentScaline = -1;
+				_currentScanline = -1;
 			}
 		}
 	}
@@ -150,7 +188,11 @@ namespace sukiNES
 
 		byte returnValue = _readBuffer;
 
-		if (realAddress >= 0x2000 && realAddress < 0x3F00)
+		if (realAddress < 0x2000)
+		{
+			return _gamePak->readChr(realAddress);
+		}
+		else if (realAddress >= 0x2000 && realAddress < 0x3F00)
 		{
 			uint32 nameTableAddress = realAddress & NametableAddressMask;
 			switch(_nametableMirroring)

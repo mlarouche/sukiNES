@@ -4,6 +4,8 @@
 
 namespace sukiNES
 {
+	class GamePak;
+
 	class PPU : public IMemory
 	{
 	public:
@@ -18,7 +20,7 @@ namespace sukiNES
 		void forceCurrentScanline(sint32 value)
 		{
 			_cycleCountPerScanline = 0;
-			_currentScaline = value;
+			_currentScanline = value;
 		}
 
 		uint32 cyclesCountPerScanline() const
@@ -28,7 +30,7 @@ namespace sukiNES
 
 		sint32 currentScanline() const
 		{
-			return _currentScaline;
+			return _currentScanline;
 		}
 
 		enum class NameTableMirroring
@@ -45,7 +47,13 @@ namespace sukiNES
 			_nametableMirroring = value;
 		}
 
+		void setGamePak(GamePak* gamePak)
+		{
+			_gamePak = gamePak;
+		}
+
 	private:
+		void _incrementCycleAndScanline();
 		byte _internalRead(word ppuAddress);
 		void _internalWrite(word ppuAddress, byte value);
 
@@ -128,7 +136,7 @@ namespace sukiNES
 		byte _oamAddress;
 
 		uint32 _cycleCountPerScanline;
-		sint32 _currentScaline;
+		sint32 _currentScanline;
 
 		word _currentPpuAddress;
 		bool _firstWrite;
@@ -138,5 +146,7 @@ namespace sukiNES
 
 		NameTableMirroring _nametableMirroring;
 		byte _nametable[SUKINES_KB(2)];
+
+		GamePak* _gamePak;
 	};
 }

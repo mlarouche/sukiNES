@@ -12,9 +12,12 @@ BlaggTestRomBase::BlaggTestRomBase()
 	_memory.setGamepakMemory(&_gamePak);
 	_memory.setPpuMemory(&_ppu);
 
-	// Setup memory in CPU
+	// Setup CPU
 	_cpu.setMainMemory(&_memory);
 	_cpu.setPPU(&_ppu);
+
+	// Setup PPU
+	_ppu.setGamePak(&_gamePak);
 }
 
 BlaggTestRomBase::~BlaggTestRomBase()

@@ -45,4 +45,9 @@ namespace sukiNES
 	void GamePak::write(word address, byte value)
 	{
 	}
+
+	byte GamePak::readChr(word address)
+	{
+		return _chrBank[address];
+	}
 }
