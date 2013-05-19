@@ -40,6 +40,9 @@
     <ClCompile Include="blagg_sprite_ram.cpp">
       <Filter>Tests</Filter>
     </ClCompile>
+    <ClCompile Include="blagg_vbl_clear_time.cpp">
+      <Filter>Tests</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="test.h">

@@ -170,7 +170,6 @@ namespace sukiNES
 			if (_currentScanline == 241 && _cycleCountPerScanline == 1)
 			{
 				_ppuStatus.vblankStarted = true;
-				// TODO: Start NMI in CPU
 				if (_io && _isRenderingEnabled())
 				{
 					_io->onVBlank();

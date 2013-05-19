@@ -504,6 +504,7 @@ namespace sukiNES
 			Flag<Unused>::write(cpu, 1);
 
 			cpu->setProgramCounter(pc -1);
+			cpu->_insideIrq = false;
 		}
 	};
 	
@@ -1418,6 +1419,9 @@ namespace sukiNES
 
 	Cpu::Cpu()
 	: _memory(nullptr)
+	, _ppu(nullptr)
+	, _nmiOccured(false)
+	, _insideIrq(false)
 	{
 		_registers.StackPointer = 0xFF;
 		_registers.A = 0;
@@ -1453,6 +1457,9 @@ namespace sukiNES
 
 	void Cpu::reset()
 	{
+		_nmiOccured = false;
+		_insideIrq = false;
+
 		word resetVector;
 		resetVector.setLowByte( _memory->read(0xFFFC) );
 		resetVector.setHighByte( _memory->read(0xFFFD) );
@@ -1480,6 +1487,17 @@ namespace sukiNES
 		}
 
 		_registers.ProgramCounter++;
+
+		if (!_insideIrq)
+		{
+			if (_nmiOccured)
+			{
+				word nmiVectorAddress;
+				nmiVectorAddress.setHighByte(0xFF);
+				nmiVectorAddress.setLowByte(0xFA);
+				doIrq(nmiVectorAddress);
+			}
+		}
 	}
 
 	void Cpu::push(byte value)
@@ -1551,7 +1569,10 @@ namespace sukiNES
 		for(int i=0; i<3; i++)
 		{
 			_ppu->tick();
+			_nmiOccured = _ppu->hasVBlankOccured();
 		}
+
+		// TODO: Run APU tick
 	}
 
 	void Cpu::dmaCopy(byte memoryPage)
@@ -1570,6 +1591,32 @@ namespace sukiNES
 			writeMemory(oamDataAddress, readValue);
 			ramAddress++;
 		}
+	}
+
+	void Cpu::doIrq(word vectorAddress)
+	{
+#ifdef SUKINES_DEBUG
+		_totalTick = 0;
+#endif
+
+		tick();
+		tick();
+
+		push(_registers.ProgramCounter);
+		push(_registers.ProcessorStatus.raw);
+
+		word irqAddress;
+		irqAddress.setLowByte( readMemory(vectorAddress) );
+
+		_registers.ProcessorStatus.Break = false;
+		_registers.ProcessorStatus.Unused = true;
+
+		++vectorAddress;
+		irqAddress.setHighByte( readMemory(vectorAddress) );
+
+		setProgramCounter(irqAddress);
+
+		_insideIrq = true;
 	}
 
 	void Cpu::_setupInstructions()

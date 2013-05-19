@@ -95,12 +95,16 @@ namespace sukiNES
 		friend struct NextByte;
 		friend struct NextWord;
 
+		template<class A, class B>
+		friend struct RTI;
+
 #ifdef SUKINES_DEBUG
 		int _totalTick;
 #endif
 
 	private:
 		void dmaCopy(byte memoryPage);
+		void doIrq(word vectorAddress);
 
 		template<byte Opcode, class Instruction>
 		void registerOpcode()
@@ -114,6 +118,9 @@ namespace sukiNES
 		CpuRegisters _registers;
 		IMemory* _memory;
 		PPU* _ppu;
+
+		bool _nmiOccured;
+		bool _insideIrq;
 
 		std::function<void(Cpu*)> _instructions[256];
 	};

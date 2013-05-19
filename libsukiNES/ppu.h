@@ -58,6 +58,11 @@ namespace sukiNES
 			_io = io;
 		}
 
+		bool hasVBlankOccured() const
+		{
+			return (unsigned)_ppuControl.generateNmi && (unsigned)_ppuStatus.vblankStarted;
+		}
+
 	private:
 		bool _isRenderingEnabled() const;
 		bool _isOutsideRendering() const;
