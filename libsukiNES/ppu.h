@@ -5,6 +5,7 @@
 namespace sukiNES
 {
 	class GamePak;
+	class PPUIO;
 
 	class PPU : public IMemory
 	{
@@ -52,8 +53,25 @@ namespace sukiNES
 			_gamePak = gamePak;
 		}
 
+		void setIO(PPUIO* io)
+		{
+			_io = io;
+		}
+
 	private:
+		bool _isRenderingEnabled() const;
+		bool _isOutsideRendering() const;
+
+		void _memoryAccess();
 		void _incrementCycleAndScanline();
+		void _incrementPpuAddressHorizontal();
+		void _incrementPpuAddressVertical();
+		void _resetHorizontalPpuAddress();
+		void _resetVerticalPpuAddress();
+		void _incrementPpuAddressOnReadWrite();
+
+		void _renderPixel();
+
 		byte _internalRead(word ppuAddress);
 		void _internalWrite(word ppuAddress, byte value);
 
@@ -92,6 +110,7 @@ namespace sukiNES
 			RegBit<7> vblankStarted;
 		} _ppuStatus;
 
+		// Aka Loopy_T
 		union
 		{
 			u16 raw;
@@ -106,6 +125,19 @@ namespace sukiNES
 			RegBit<14, 1, u16> clearBit14;
 		} _temporaryPpuAddress;
 
+		// Aka Loopy_V
+		union
+		{
+			u16 raw;
+			RegBit<0, 5, u16> coarseXScroll;
+			RegBit<5, 5, u16> coarseYScroll;
+			RegBit<10, 2, u16> nametableSelect;
+			RegBit<12, 3, u16> fineYScroll;
+		} _currentPpuAddress;
+
+		// Aka Loopy_W
+		bool _firstWrite;
+		// Aka Loopy_X
 		byte _fineXScroll;
 
 		struct OAMEntry
@@ -138,8 +170,6 @@ namespace sukiNES
 		uint32 _cycleCountPerScanline;
 		sint32 _currentScanline;
 
-		word _currentPpuAddress;
-		bool _firstWrite;
 		byte _readBuffer;
 
 		byte _palette[32];
@@ -147,6 +177,9 @@ namespace sukiNES
 		NameTableMirroring _nametableMirroring;
 		byte _nametable[SUKINES_KB(2)];
 
+		byte _lastPaletteIndex;
+
 		GamePak* _gamePak;
+		PPUIO* _io;
 	};
 }

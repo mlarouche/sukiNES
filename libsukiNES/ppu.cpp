@@ -2,6 +2,7 @@
 
 // Local includes
 #include "gamepak.h"
+#include "ppuio.h"
 
 namespace sukiNES
 {
@@ -44,12 +45,15 @@ namespace sukiNES
 	, _currentScanline(PreRenderScanline)
 	, _firstWrite(true)
 	, _readBuffer(0xFF)
+	, _lastPaletteIndex(0)
 	, _gamePak(nullptr)
+	, _io(nullptr)
 	{
 		_ppuControl.raw = 0;
 		_ppuMask.raw = 0;
 		_ppuStatus.raw = 0;
 		_temporaryPpuAddress.raw = 0;
+		_currentPpuAddress.raw = 0;
 
 		_rawOAM = reinterpret_cast<byte*>(_sprites);
 		memcpy(_palette, PaletteAtPowerOn, sizeof(PaletteAtPowerOn) / sizeof(byte));
@@ -75,8 +79,8 @@ namespace sukiNES
 			case PpuRegister::OamData:
 				return ((_oamAddress+1) % 3 == 0) ? _rawOAM[_oamAddress] & OamDataAttributeReadMask : _rawOAM[_oamAddress];
 			case PpuRegister::PpuData:
-				byte readValue = _internalRead(_currentPpuAddress);
-				(unsigned)_ppuControl.addressIncrement ? _currentPpuAddress += 32 : ++_currentPpuAddress;
+				byte readValue = _internalRead(_currentPpuAddress.raw);
+				_incrementPpuAddressOnReadWrite();
 				return readValue;
 		}
 
@@ -127,13 +131,13 @@ namespace sukiNES
 				else
 				{
 					_temporaryPpuAddress.lowByteAddress = value;
-					_currentPpuAddress = _temporaryPpuAddress.raw;
+					_currentPpuAddress.raw = _temporaryPpuAddress.raw;
 					_firstWrite = !_firstWrite;
 				}
 				break;
 			case PpuRegister::PpuData:
-				_internalWrite(_currentPpuAddress, value);
-				(unsigned)_ppuControl.addressIncrement ? _currentPpuAddress += 32 : ++_currentPpuAddress;
+				_internalWrite(_currentPpuAddress.raw, value);
+				_incrementPpuAddressOnReadWrite();
 				break;
 			}
 	}
@@ -144,11 +148,16 @@ namespace sukiNES
 		// and http://wiki.nesdev.com/w/index.php/PPU_rendering
 		// for more details on how this works.
 
-		if(_currentScanline == PreRenderScanline)
+		if (_currentScanline >= 0 && _currentScanline < PostRenderScanline)
 		{
-			if (_cycleCountPerScanline == 1)
+			if (_isRenderingEnabled())
 			{
-				_ppuStatus.raw = 0;
+				if (_cycleCountPerScanline >= 0 && _cycleCountPerScanline < 256)
+				{
+					_renderPixel();
+				}
+
+				_memoryAccess();
 			}
 		}
 		else if (_currentScanline == PostRenderScanline)
@@ -162,10 +171,84 @@ namespace sukiNES
 			{
 				_ppuStatus.vblankStarted = true;
 				// TODO: Start NMI in CPU
+				if (_io && _isRenderingEnabled())
+				{
+					_io->onVBlank();
+				}
 			}
 		}
-		
+		else if(_currentScanline == PreRenderScanline)
+		{
+			if (_isRenderingEnabled())
+			{
+				if (_cycleCountPerScanline == 1)
+				{
+					_ppuStatus.raw = 0;
+				}
+				if (_cycleCountPerScanline >= 280 && _cycleCountPerScanline < 305)
+				{
+					_resetVerticalPpuAddress();
+				}
+
+				_memoryAccess();
+			}
+		}
+
 		_incrementCycleAndScanline();
+	}
+
+	void PPU::_memoryAccess()
+	{
+		if (_cycleCountPerScanline == 0)
+		{
+		}
+		else if(_cycleCountPerScanline >= 1 && _cycleCountPerScanline < 256)
+		{
+			if (_cycleCountPerScanline % 8 == 0)
+			{
+				_incrementPpuAddressHorizontal();
+			}
+		}
+		else if(_cycleCountPerScanline == 256)
+		{
+			_incrementPpuAddressVertical();
+		}
+		else if(_cycleCountPerScanline == 257)
+		{
+			_resetHorizontalPpuAddress();
+		}
+		else if(_cycleCountPerScanline >= 258 && _cycleCountPerScanline < 321)
+		{
+			
+		}
+		else if(_cycleCountPerScanline >= 321 && _cycleCountPerScanline < 337)
+		{
+			if (_cycleCountPerScanline % 8 == 0)
+			{
+				_incrementPpuAddressHorizontal();
+			}
+		}
+		else
+		{
+			
+		}
+	}
+
+	bool PPU::_isRenderingEnabled() const
+	{
+		return (unsigned)_ppuMask.showBackground || (unsigned)_ppuMask.showSprites;
+	}
+
+	bool PPU::_isOutsideRendering() const
+	{
+		if ((_currentScanline >= 240 && _currentScanline < 260) || (_currentScanline == -1))
+		{
+			return true;
+		}
+		else
+		{
+			return !_isRenderingEnabled();
+		}
 	}
 
 	void PPU::_incrementCycleAndScanline()
@@ -179,6 +262,82 @@ namespace sukiNES
 			{
 				_currentScanline = -1;
 			}
+		}
+	}
+
+	void PPU::_incrementPpuAddressHorizontal()
+	{
+		if (((unsigned)_currentPpuAddress.coarseXScroll & 0x1F) == 31)
+		{
+			_currentPpuAddress.coarseXScroll = 0;
+			// Switch horizontal nametable
+			_currentPpuAddress.nametableSelect = (unsigned)_currentPpuAddress.nametableSelect ^ SUKINES_BIT(0);
+		}
+		else
+		{
+			_currentPpuAddress.coarseXScroll = (unsigned)_currentPpuAddress.coarseXScroll + 1;
+		}
+	}
+
+	void PPU::_incrementPpuAddressVertical()
+	{
+		if ((unsigned)_currentPpuAddress.fineYScroll < 7)
+		{
+			_currentPpuAddress.fineYScroll = (unsigned)_currentPpuAddress.fineYScroll + 1;
+		}
+		else
+		{
+			_currentPpuAddress.raw &= 0x0FFF;
+			sint32 y = (unsigned)_currentPpuAddress.coarseYScroll;
+			if (y == 29)
+			{
+				y = 0;
+				// Switch vertical nametable
+				_currentPpuAddress.nametableSelect = (unsigned)_currentPpuAddress.nametableSelect ^ SUKINES_BIT(1);
+			}
+			else if (y == 31)
+			{
+				y = 0;
+			}
+			else
+			{
+				++y;
+			}
+
+			_currentPpuAddress.coarseYScroll = y;
+		}
+	}
+
+	void PPU::_resetHorizontalPpuAddress()
+	{
+		_currentPpuAddress.coarseXScroll = (unsigned)_temporaryPpuAddress.coarseXScroll;
+		_currentPpuAddress.nametableSelect = ((unsigned)_currentPpuAddress.nametableSelect & ~SUKINES_BIT(0)) | ((unsigned)_temporaryPpuAddress.nametableSelect & SUKINES_BIT(0));
+	}
+
+	void PPU::_resetVerticalPpuAddress()
+	{
+		_currentPpuAddress.coarseYScroll = (unsigned)_temporaryPpuAddress.coarseYScroll;
+		_currentPpuAddress.fineYScroll = (unsigned)_temporaryPpuAddress.fineYScroll;
+		_currentPpuAddress.nametableSelect = ((unsigned)_currentPpuAddress.nametableSelect & ~SUKINES_BIT(1)) | ((unsigned)_temporaryPpuAddress.nametableSelect & SUKINES_BIT(1));
+	}
+
+	void PPU::_incrementPpuAddressOnReadWrite()
+	{
+		if (_isOutsideRendering())
+		{
+			(unsigned)_ppuControl.addressIncrement ? _currentPpuAddress.raw += 32 : ++_currentPpuAddress.raw;
+		}
+		else
+		{
+			_incrementPpuAddressVertical();
+		}
+	}
+
+	void PPU::_renderPixel()
+	{
+		if (_io)
+		{
+			_io->putPixel(_cycleCountPerScanline, _currentScanline, _lastPaletteIndex);
 		}
 	}
 

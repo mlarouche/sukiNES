@@ -19,6 +19,7 @@
     <ClInclude Include="memory.h" />
     <ClInclude Include="platform_support.h" />
     <ClInclude Include="ppu.h" />
+    <ClInclude Include="ppuio.h" />
     <ClInclude Include="types.h" />
   </ItemGroup>
   <ItemGroup>
