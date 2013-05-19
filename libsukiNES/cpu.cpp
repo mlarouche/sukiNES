@@ -46,7 +46,7 @@ namespace sukiNES
 
 	inline int TestOverflow(int value)
 	{
-		return (value & 0x40);
+		return (value & SUKINES_BIT(Overflow));
 	}
 
 	enum RegisterName
@@ -967,7 +967,7 @@ namespace sukiNES
 			Flag<Carry>::write(cpu, (temp > 0xFF));
 			Flag<Zero>::write(cpu, TestZero(result));
 			Flag<Negative>::write(cpu, TestNegative(result));
-			Flag<Overflow>::write(cpu, !((a ^ b) & 0x80) && ((a ^ temp) & 0x80));
+			Flag<Overflow>::write(cpu, !((a ^ b) & SUKINES_BIT(Negative)) && ((a ^ temp) & SUKINES_BIT(Negative)));
 
 			A::write(cpu, result);
 		}
@@ -990,7 +990,7 @@ namespace sukiNES
 			Flag<Carry>::write(cpu, (temp >= 0 && temp < 0x100));
 			Flag<Zero>::write(cpu, TestZero(result));
 			Flag<Negative>::write(cpu, TestNegative(result));
-			Flag<Overflow>::write(cpu, ((a ^ b) & 0x80) && ((a ^ temp) & 0x80));
+			Flag<Overflow>::write(cpu, ((a ^ b) & SUKINES_BIT(Negative)) && ((a ^ temp) & SUKINES_BIT(Negative)));
 
 			A::write(cpu, result);
 		}
@@ -1277,7 +1277,7 @@ namespace sukiNES
 			Flag<Carry>::write(cpu, (temp >= 0 && temp < 0x100));
 			Flag<Zero>::write(cpu, TestZero(result));
 			Flag<Negative>::write(cpu, TestNegative(result));
-			Flag<Overflow>::write(cpu, ((b ^ a) & 0x80) && ((b ^ temp) & 0x80));
+			Flag<Overflow>::write(cpu, ((b ^ a) & SUKINES_BIT(Negative)) && ((b ^ temp) & SUKINES_BIT(Negative)));
 
 			Register<A>::write(cpu, result);
 		}
@@ -1381,7 +1381,7 @@ namespace sukiNES
 			Flag<Carry>::write(cpu, (temp2 > 0xFF));
 			Flag<Zero>::write(cpu, TestZero(result));
 			Flag<Negative>::write(cpu, TestNegative(result));
-			Flag<Overflow>::write(cpu, !((a ^ b) & 0x80) && ((a ^ temp2) & 0x80));
+			Flag<Overflow>::write(cpu, !((a ^ b) & SUKINES_BIT(Negative)) && ((a ^ temp2) & SUKINES_BIT(Negative)));
 
 			Register<A>::write(cpu, result);
 		}

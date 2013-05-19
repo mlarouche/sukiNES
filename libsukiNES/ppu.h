@@ -50,6 +50,56 @@ namespace sukiNES
 		void _internalWrite(word ppuAddress, byte value);
 
 	private:
+		union
+		{
+			byte raw;
+			RegBit<0, 2> baseNametableAddress;
+			RegBit<2> addressIncrement;
+			RegBit<3> spritePatternTable;
+			RegBit<4> backgroundPatternTable;
+			RegBit<5> spriteSize;
+			RegBit<6> ppuMasterSlave;
+			RegBit<7> generateNmi;
+		} _ppuControl;
+
+		union
+		{
+			byte raw;
+			RegBit<0> grayscale;
+			RegBit<1> showBackgroundLeftmost;
+			RegBit<2> showSpritesLeftmost;
+			RegBit<3> showBackground;
+			RegBit<4> showSprites;
+			RegBit<5> intensityRed;
+			RegBit<6> intensityGreen;
+			RegBit<7> intensityBlue;
+		} _ppuMask;
+
+		union
+		{
+			byte raw;
+			RegBit<0, 5> leastBits;
+			RegBit<5> spriteOverflow;
+			RegBit<6> sprite0Hit;
+			RegBit<7> vblankStarted;
+		} _ppuStatus;
+
+		union
+		{
+			u16 raw;
+			RegBit<0, 5, u16> coarseXScroll;
+			RegBit<5, 5, u16> coarseYScroll;
+			RegBit<10, 2, u16> nametableSelect;
+			RegBit<12, 3, u16> fineYScroll;
+
+			// Special fields used by PPU register PpuAddress
+			RegBit<8, 6, u16> highByteAddress;
+			RegBit<0, 8, u16> lowByteAddress;
+			RegBit<14, 1, u16> clearBit14;
+		} _temporaryPpuAddress;
+
+		byte _fineXScroll;
+
 		struct OAMEntry
 		{
 			OAMEntry()

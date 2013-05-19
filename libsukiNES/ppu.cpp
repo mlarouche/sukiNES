@@ -32,13 +32,19 @@ namespace sukiNES
 	};
 
 	PPU::PPU()
-	: _rawOAM(nullptr)
+	: _fineXScroll(0)
+	, _rawOAM(nullptr)
 	, _oamAddress(0)
 	, _cycleCountPerScanline(0)
 	, _currentScaline(0)
 	, _firstWrite(true)
 	, _readBuffer(0xFF)
 	{
+		_ppuControl.raw = 0;
+		_ppuMask.raw = 0;
+		_ppuStatus.raw = 0;
+		_temporaryPpuAddress.raw = 0;
+
 		_rawOAM = reinterpret_cast<byte*>(_sprites);
 		memcpy(_palette, PaletteAtPowerOn, sizeof(PaletteAtPowerOn) / sizeof(byte));
 	}
@@ -56,12 +62,13 @@ namespace sukiNES
 			// For now, always return that the VBL is ready
 		case PpuRegister::PpuStatus:
 			_firstWrite = true;
-			return 1 << 7;
+			_ppuStatus.vblankStarted = true;
+			return _ppuStatus.raw;
 		case PpuRegister::OamData:
 			return ((_oamAddress+1) % 3 == 0) ? _rawOAM[_oamAddress] & OamDataAttributeReadMask : _rawOAM[_oamAddress];
 		case PpuRegister::PpuData:
 			byte readValue = _internalRead(_currentPpuAddress);
-			++_currentPpuAddress;
+			(unsigned)_ppuControl.addressIncrement ? _currentPpuAddress += 32 : ++_currentPpuAddress;
 			return readValue;
 		}
 
@@ -74,6 +81,13 @@ namespace sukiNES
 
 		switch(ppuRegister)
 		{
+		case PpuRegister::PpuControl:
+			_ppuControl.raw = value;
+			_temporaryPpuAddress.nametableSelect = (unsigned)_ppuControl.baseNametableAddress;
+			break;
+		case PpuRegister::PpuMask:
+			_ppuMask.raw = value;
+			break;
 		case PpuRegister::OamAddress:
 			_oamAddress = value;
 			break;
@@ -81,13 +95,37 @@ namespace sukiNES
 			_rawOAM[_oamAddress] = value;
 			++_oamAddress;
 			break;
+		case PpuRegister::Scroll:
+			if (_firstWrite)
+			{
+				_temporaryPpuAddress.coarseXScroll = (value & 0xF8) >> 3;
+				_fineXScroll = value & 0x7;
+				_firstWrite = !_firstWrite;
+			}
+			else
+			{
+				_temporaryPpuAddress.coarseYScroll = (value & 0xF8) >> 3;
+				_temporaryPpuAddress.fineYScroll = value & 0x7;
+				_firstWrite = !_firstWrite;
+			}
+			break;
 		case PpuRegister::PpuAddress:
-			_firstWrite ? _currentPpuAddress.setHighByte(value) : _currentPpuAddress.setLowByte(value);
-			_firstWrite = !_firstWrite;
+			if (_firstWrite)
+			{
+				_temporaryPpuAddress.highByteAddress = value & 0x3F;
+				_temporaryPpuAddress.clearBit14 = 0;
+				_firstWrite = !_firstWrite;
+			}
+			else
+			{
+				_temporaryPpuAddress.lowByteAddress = value;
+				_currentPpuAddress = _temporaryPpuAddress.raw;
+				_firstWrite = !_firstWrite;
+			}
 			break;
 		case PpuRegister::PpuData:
 			_internalWrite(_currentPpuAddress, value);
-			++_currentPpuAddress;
+			(unsigned)_ppuControl.addressIncrement ? _currentPpuAddress += 32 : ++_currentPpuAddress;
 			break;
 		}
 	}
