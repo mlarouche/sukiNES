@@ -1,5 +1,9 @@
 #pragma once
 
+// STL includes
+#include <queue>
+
+// Local includes
 #include "memory.h"
 
 namespace sukiNES
@@ -68,7 +72,16 @@ namespace sukiNES
 		bool _isOutsideRendering() const;
 
 		void _memoryAccess();
+
+		void _nametableFetch();
+		void _attributeFetch();
+		void _lowBackgroundByteFetch();
+		void _highBackgroundByteFetch();
+
+		void _prepareNextTile();
+
 		void _incrementCycleAndScanline();
+
 		void _incrementPpuAddressHorizontal();
 		void _incrementPpuAddressVertical();
 		void _resetHorizontalPpuAddress();
@@ -77,7 +90,13 @@ namespace sukiNES
 
 		void _renderPixel();
 
-		byte _internalRead(word ppuAddress);
+		enum class ReadSource
+		{
+			FromPPU,
+			FromRegister
+		};
+
+		byte _internalRead(word ppuAddress, ReadSource readSource = ReadSource::FromPPU);
 		void _internalWrite(word ppuAddress, byte value);
 
 	private:
@@ -182,9 +201,15 @@ namespace sukiNES
 		NameTableMirroring _nametableMirroring;
 		byte _nametable[SUKINES_KB(2)];
 
-		byte _lastPaletteIndex;
-
 		GamePak* _gamePak;
 		PPUIO* _io;
+
+		byte _lastReadNametableByte;
+		std::queue<u16> _backgroundPatternQueue;
+		std::queue<byte> _backgroundAttributeQueue;
+
+		word _currentBackgroundPattern;
+		byte _currentAttribute;
+		word _tempBackgroundPattern;
 	};
 }

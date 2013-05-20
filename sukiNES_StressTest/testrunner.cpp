@@ -60,6 +60,8 @@ namespace StressTest
 					test->printFailure();
 					fprintf(stderr, " ]\n");
 				}
+
+				delete test;
 			}
 		}
 

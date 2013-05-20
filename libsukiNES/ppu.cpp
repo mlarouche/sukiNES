@@ -45,9 +45,12 @@ namespace sukiNES
 	, _currentScanline(PreRenderScanline)
 	, _firstWrite(true)
 	, _readBuffer(0xFF)
-	, _lastPaletteIndex(0)
 	, _gamePak(nullptr)
 	, _io(nullptr)
+	, _lastReadNametableByte(0)
+	, _currentBackgroundPattern(0)
+	, _currentAttribute(0)
+	, _tempBackgroundPattern(0)
 	{
 		_ppuControl.raw = 0;
 		_ppuMask.raw = 0;
@@ -57,6 +60,8 @@ namespace sukiNES
 
 		_rawOAM = reinterpret_cast<byte*>(_sprites);
 		memcpy(_palette, PaletteAtPowerOn, sizeof(PaletteAtPowerOn) / sizeof(byte));
+
+		memset(_nametable, 0, sizeof(_nametable) / sizeof(byte));
 	}
 
 	PPU::~PPU()
@@ -79,7 +84,7 @@ namespace sukiNES
 			case PpuRegister::OamData:
 				return ((_oamAddress+1) % 3 == 0) ? _rawOAM[_oamAddress] & OamDataAttributeReadMask : _rawOAM[_oamAddress];
 			case PpuRegister::PpuData:
-				byte readValue = _internalRead(_currentPpuAddress.raw);
+				byte readValue = _internalRead(_currentPpuAddress.raw, PPU::ReadSource::FromRegister);
 				_incrementPpuAddressOnReadWrite();
 				return readValue;
 		}
@@ -152,6 +157,11 @@ namespace sukiNES
 		{
 			if (_isRenderingEnabled())
 			{
+				if (_cycleCountPerScanline % 8 == 0)
+				{
+					_prepareNextTile();
+				}
+
 				if (_cycleCountPerScanline >= 0 && _cycleCountPerScanline < 256)
 				{
 					_renderPixel();
@@ -203,13 +213,152 @@ namespace sukiNES
 		}
 		else if(_cycleCountPerScanline >= 1 && _cycleCountPerScanline < 256)
 		{
-			if (_cycleCountPerScanline % 8 == 0)
+			switch(_cycleCountPerScanline)
 			{
-				_incrementPpuAddressHorizontal();
+				case 2:
+				case 10:
+				case 18:
+				case 26:
+				case 34:
+				case 42:
+				case 50:
+				case 58:
+				case 66:
+				case 74:
+				case 82:
+				case 90:
+				case 98:
+				case 106:
+				case 114:
+				case 122:
+				case 130:
+				case 138:
+				case 146:
+				case 154:
+				case 162:
+				case 170:
+				case 178:
+				case 186:
+				case 194:
+				case 202:
+				case 210:
+				case 218:
+				case 226:
+				case 234:
+				case 242:
+				case 250:
+					_nametableFetch();
+					break;
+				case 4:
+				case 12:
+				case 20:
+				case 28:
+				case 36:
+				case 44:
+				case 52:
+				case 60:
+				case 68:
+				case 76:
+				case 84:
+				case 92:
+				case 100:
+				case 108:
+				case 116:
+				case 124:
+				case 132:
+				case 140:
+				case 148:
+				case 156:
+				case 164:
+				case 172:
+				case 180:
+				case 188:
+				case 196:
+				case 204:
+				case 212:
+				case 220:
+				case 228:
+				case 236:
+				case 244:
+				case 252:
+					_attributeFetch();
+					break;
+				case 6:
+				case 14:
+				case 22:
+				case 30:
+				case 38:
+				case 46:
+				case 54:
+				case 62:
+				case 70:
+				case 78:
+				case 86:
+				case 94:
+				case 102:
+				case 110:
+				case 118:
+				case 126:
+				case 134:
+				case 142:
+				case 150:
+				case 158:
+				case 166:
+				case 174:
+				case 182:
+				case 190:
+				case 198:
+				case 206:
+				case 214:
+				case 222:
+				case 230:
+				case 238:
+				case 246:
+				case 254:
+					_lowBackgroundByteFetch();
+					break;
+				case 8:
+				case 16:
+				case 24:
+				case 32:
+				case 40:
+				case 48:
+				case 56:
+				case 64:
+				case 72:
+				case 80:
+				case 88:
+				case 96:
+				case 104:
+				case 112:
+				case 120:
+				case 128:
+				case 136:
+				case 144:
+				case 152:
+				case 160:
+				case 168:
+				case 176:
+				case 184:
+				case 192:
+				case 200:
+				case 208:
+				case 216:
+				case 224:
+				case 232:
+				case 240:
+				case 248:
+					_highBackgroundByteFetch();
+
+					_incrementPpuAddressHorizontal();
+					break;
 			}
 		}
 		else if(_cycleCountPerScanline == 256)
 		{
+			_highBackgroundByteFetch();
+
+			_incrementPpuAddressHorizontal();
 			_incrementPpuAddressVertical();
 		}
 		else if(_cycleCountPerScanline == 257)
@@ -222,6 +371,38 @@ namespace sukiNES
 		}
 		else if(_cycleCountPerScanline >= 321 && _cycleCountPerScanline < 337)
 		{
+			switch(_cycleCountPerScanline)
+			{
+				case 321:
+					while (!_backgroundAttributeQueue.empty())
+					{
+						_backgroundAttributeQueue.pop();
+					}
+					while (!_backgroundPatternQueue.empty())
+					{
+						_backgroundPatternQueue.pop();
+					}
+					break;
+				case 322:
+				case 330:
+					_nametableFetch();
+					break;
+				case 324:
+				case 332:
+					_attributeFetch();
+					break;
+				case 326:
+				case 334:
+					_lowBackgroundByteFetch();
+					break;
+				case 328:
+				case 336:
+					_highBackgroundByteFetch();
+					break;
+				default:
+					break;
+			}
+
 			if (_cycleCountPerScanline % 8 == 0)
 			{
 				_incrementPpuAddressHorizontal();
@@ -229,7 +410,6 @@ namespace sukiNES
 		}
 		else
 		{
-			
 		}
 	}
 
@@ -247,6 +427,53 @@ namespace sukiNES
 		else
 		{
 			return !_isRenderingEnabled();
+		}
+	}
+
+	void PPU::_nametableFetch()
+	{
+		word nametableAddress = 0x2000 | (_currentPpuAddress.raw & 0x0FFF);
+		_lastReadNametableByte = _internalRead(nametableAddress);
+	}
+
+	void PPU::_attributeFetch()
+	{
+		word attributeAddress = 0x23C0 | (_currentPpuAddress.raw & 0x0C00) | ((_currentPpuAddress.raw >> 4) & 0x38) | ((_currentPpuAddress.raw >> 2) & 0x07);
+		_backgroundAttributeQueue.push( _internalRead(attributeAddress) );
+	}
+
+	void PPU::_lowBackgroundByteFetch()
+	{
+		u16 chrAddress = 0;
+		chrAddress = ((unsigned)_ppuControl.backgroundPatternTable) * 0x1000;
+		chrAddress += _lastReadNametableByte * 16 + (unsigned)_currentPpuAddress.fineYScroll;
+
+		_tempBackgroundPattern.setLowByte( _internalRead(chrAddress) );
+	}
+
+	void PPU::_highBackgroundByteFetch()
+	{
+		u16 chrAddress = 0;
+		chrAddress = ((unsigned)_ppuControl.backgroundPatternTable) * 0x1000;
+		chrAddress += (_lastReadNametableByte * 16) + 8 + (unsigned)_currentPpuAddress.fineYScroll;
+
+		_tempBackgroundPattern.setHighByte( _internalRead(chrAddress) );
+
+		_backgroundPatternQueue.push( (u16)_tempBackgroundPattern );
+	}
+
+	void PPU::_prepareNextTile()
+	{
+		if (!_backgroundPatternQueue.empty())
+		{
+			_currentBackgroundPattern = _backgroundPatternQueue.front();
+			_backgroundPatternQueue.pop();
+		}
+
+		if (!_backgroundAttributeQueue.empty())
+		{
+			_currentAttribute = _backgroundAttributeQueue.front();
+			_backgroundAttributeQueue.pop();
 		}
 	}
 
@@ -334,13 +561,33 @@ namespace sukiNES
 
 	void PPU::_renderPixel()
 	{
+		union
+		{
+			byte raw;
+			RegBit<0,2> pixelTile;
+			RegBit<2,2> paletteNumber;
+			RegBit<4> isSpritePalette;
+		} paletteIndex;
+
+		paletteIndex.raw = 0;
+
+		uint32 column = 7 - ((_cycleCountPerScanline % 8));
+		byte whichAttribute = ((_cycleCountPerScanline & 0x1F) > 0xF ? 1 : 0) + ((_currentScanline & 0x1F) > 0xF ? 2 : 0);
+
+		paletteIndex.pixelTile = ((_currentBackgroundPattern.lowByte() >> column) & 0x1)
+			| (((_currentBackgroundPattern.highByte() >> column) & 0x1) << 1);
+
+		paletteIndex.paletteNumber = (_currentAttribute >> (whichAttribute * 2)) & 0x3;
+
+		paletteIndex.isSpritePalette = false;
+
 		if (_io)
 		{
-			_io->putPixel(_cycleCountPerScanline, _currentScanline, _lastPaletteIndex);
+			_io->putPixel(_cycleCountPerScanline, _currentScanline, _palette[paletteIndex.raw]);
 		}
 	}
 
-	byte PPU::_internalRead(word ppuAddress)
+	byte PPU::_internalRead(word ppuAddress, PPU::ReadSource readSource)
 	{
 		word realAddress = ppuAddress & PpuMirroringMask;
 
@@ -348,7 +595,7 @@ namespace sukiNES
 
 		if (realAddress < 0x2000)
 		{
-			return _gamePak->readChr(realAddress);
+			_readBuffer = _gamePak->readChr(realAddress);
 		}
 		else if (realAddress >= 0x2000 && realAddress < 0x3F00)
 		{
@@ -379,7 +626,13 @@ namespace sukiNES
 			return _palette[(realAddress & PaletteMask)];
 		}
 
-		return returnValue;
+		switch(readSource)
+		{
+		case PPU::ReadSource::FromPPU:
+			return _readBuffer;
+		default:
+			return returnValue;
+		}
 	}
 
 	void PPU::_internalWrite(word ppuAddress, byte value)
