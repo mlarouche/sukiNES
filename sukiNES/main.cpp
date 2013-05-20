@@ -14,6 +14,10 @@
 #include <SDL.h>
 #endif
 
+static const uint32 ScalingFactor = 3;
+static const uint32 ScreenWidth = 256*ScalingFactor;
+static const uint32 ScreenHeight = 240*ScalingFactor;
+
 void PutPixel(SDL_Surface *surface, int x, int y, unsigned int pixel)
 {
 	int bpp = surface->format->BytesPerPixel;
@@ -96,7 +100,20 @@ public:
 
 	virtual void putPixel(sint32 x, sint32 y, byte paletteIndex)
 	{
-		PutPixel(_destination, x, y, _palette[paletteIndex]);
+		if (ScalingFactor == 1)
+		{
+			PutPixel(_destination, x, y, _palette[paletteIndex]);
+		}
+		else
+		{
+			for(uint32 scaleY=0; scaleY<ScalingFactor; ++scaleY)
+			{
+				for (uint32 scaleX=0; scaleX<ScalingFactor; ++scaleX)
+				{
+					PutPixel(_destination, x*ScalingFactor+scaleX, y*ScalingFactor+scaleY, _palette[paletteIndex]);
+				}
+			}
+		}
 	}
 
 	virtual void onVBlank()
@@ -171,11 +188,13 @@ private:
 	sukiNES::PPU _ppu;
 };
 
-static const char* RomFilename = "Donkey Kong (World) (Rev A).nes";
+//static const char* RomFilename = "Donkey Kong (World) (Rev A).nes";
 //static const char* RomFilename = "Excitebike (Japan, USA).nes";
-//static const char* RomFilename = "Super Mario Bros. (World).nes";
+static const char* RomFilename = "Super Mario Bros. (World).nes";
 //static const char* RomFilename = "Ice Climber (USA, Europe).nes";
 //static const char* RomFilename = "Balloon Fight (USA).nes";
+//static const char* RomFilename = "NEStress.NES";
+
 int main(int argc, char** argv)
 {
 	if (SDL_Init(SDL_INIT_VIDEO) < 0)
@@ -186,7 +205,7 @@ int main(int argc, char** argv)
 
 	Uint32 windowFlags = SDL_DOUBLEBUF | SDL_SWSURFACE;
 
-	SDL_Surface* screen = SDL_SetVideoMode(256, 240, 32, windowFlags);
+	SDL_Surface* screen = SDL_SetVideoMode(ScreenWidth, ScreenHeight, 32, windowFlags);
 
 	if (screen == nullptr)
 	{

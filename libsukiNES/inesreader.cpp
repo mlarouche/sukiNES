@@ -131,7 +131,10 @@ namespace sukiNES
 
 		file.read(chrData.get(), sizeof(byte), chrDataSize);
 
-		_gamePak->setChrData(std::move(chrData));
+		if (chrPageCount > 0)
+		{
+			_gamePak->setChrData(std::move(chrData));
+		}
 
 		if (_ppu)
 		{

@@ -43,6 +43,7 @@ namespace sukiNES
 	, _oamAddress(0)
 	, _cycleCountPerScanline(0)
 	, _currentScanline(PreRenderScanline)
+	, _isEvenFrame(true)
 	, _firstWrite(true)
 	, _readBuffer(0xFF)
 	, _gamePak(nullptr)
@@ -180,6 +181,7 @@ namespace sukiNES
 			if (_currentScanline == 241 && _cycleCountPerScanline == 1)
 			{
 				_ppuStatus.vblankStarted = true;
+				_isEvenFrame = !_isEvenFrame;
 				if (_io && _isRenderingEnabled())
 				{
 					_io->onVBlank();
@@ -188,6 +190,19 @@ namespace sukiNES
 		}
 		else if(_currentScanline == PreRenderScanline)
 		{
+			if (_cycleCountPerScanline == 339)
+			{
+				if (!_isEvenFrame && _isRenderingEnabled())
+				{
+					++_cycleCountPerScanline;
+				}
+			}
+
+			if (_cycleCountPerScanline == 1)
+			{
+				_ppuStatus.raw = 0;
+			}
+
 			if (_isRenderingEnabled())
 			{
 				if (_cycleCountPerScanline == 1)
@@ -410,6 +425,15 @@ namespace sukiNES
 		}
 		else
 		{
+			switch(_cycleCountPerScanline)
+			{
+				case 338:
+				case 340:
+					_nametableFetch();
+					break;
+				default:
+					break;
+			}
 		}
 	}
 
@@ -444,9 +468,11 @@ namespace sukiNES
 
 	void PPU::_lowBackgroundByteFetch()
 	{
+		_tempBackgroundPattern = 0;
+
 		u16 chrAddress = 0;
 		chrAddress = ((unsigned)_ppuControl.backgroundPatternTable) * 0x1000;
-		chrAddress += _lastReadNametableByte * 16 + (unsigned)_currentPpuAddress.fineYScroll;
+		chrAddress |= _lastReadNametableByte * 16 + (unsigned)_currentPpuAddress.fineYScroll;
 
 		_tempBackgroundPattern.setLowByte( _internalRead(chrAddress) );
 	}
@@ -455,7 +481,7 @@ namespace sukiNES
 	{
 		u16 chrAddress = 0;
 		chrAddress = ((unsigned)_ppuControl.backgroundPatternTable) * 0x1000;
-		chrAddress += (_lastReadNametableByte * 16) + 8 + (unsigned)_currentPpuAddress.fineYScroll;
+		chrAddress |= (_lastReadNametableByte * 16) + 8 + (unsigned)_currentPpuAddress.fineYScroll;
 
 		_tempBackgroundPattern.setHighByte( _internalRead(chrAddress) );
 
@@ -581,6 +607,11 @@ namespace sukiNES
 
 		paletteIndex.isSpritePalette = false;
 
+		if ( !((paletteIndex.raw & 0x1F) & 0x3) )
+		{
+			paletteIndex.raw = 0;
+		}
+
 		if (_io)
 		{
 			_io->putPixel(_cycleCountPerScanline, _currentScanline, _palette[paletteIndex.raw]);
@@ -638,8 +669,11 @@ namespace sukiNES
 	void PPU::_internalWrite(word ppuAddress, byte value)
 	{
 		word realAddress = ppuAddress & PpuMirroringMask;
-
-		if (realAddress >= 0x2000 && realAddress < 0x3F00)
+		if (realAddress < 0x2000)
+		{
+			_gamePak->writeChr(ppuAddress, value);
+		}
+		else if (realAddress >= 0x2000 && realAddress < 0x3F00)
 		{
 			uint32 nameTableAddress = realAddress & NametableAddressMask;
 			switch(_nametableMirroring)

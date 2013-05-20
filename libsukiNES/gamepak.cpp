@@ -5,10 +5,15 @@ namespace sukiNES
 	static const uint32 GamePakBaseAddress = 0x8000;
 
 	GamePak::GamePak()
-	: _chrBank(nullptr)
+	: _chrData(ChrBankSize)
+	, _chrBank(nullptr)
 	, _mirroring(0)
 	, _hasSaveRam(false)
+	, _mapper(0)
 	{
+		_chrBank = _chrData.get();
+		memset(_chrBank, 0, ChrBankSize);
+
 		_romBank[0] = nullptr;
 		_romBank[1] = nullptr;
 	}
@@ -49,5 +54,10 @@ namespace sukiNES
 	byte GamePak::readChr(word address)
 	{
 		return _chrBank[address];
+	}
+
+	void GamePak::writeChr(word address, byte value)
+	{
+		_chrBank[address] = value;
 	}
 }

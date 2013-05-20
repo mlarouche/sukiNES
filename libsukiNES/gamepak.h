@@ -21,6 +21,7 @@ namespace sukiNES
 		virtual void write(word address, byte value);
 
 		byte readChr(word address);
+		void writeChr(word address, byte value);
 
 		void setRomData(DynamicArray<byte>&& romData);
 
