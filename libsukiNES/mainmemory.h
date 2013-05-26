@@ -23,11 +23,6 @@ namespace sukiNES
 			_apuMemory = memory;
 		}
 
-		void setInputMemory(IMemory* memory)
-		{
-			_inputMemory = memory;
-		}
-
 		void setGamepakMemory(IMemory* memory)
 		{
 			_gamepakMemory = memory;
@@ -39,7 +34,6 @@ namespace sukiNES
 
 		IMemory* _ppuMemory;
 		IMemory* _apuMemory;
-		IMemory* _inputMemory;
 		IMemory* _gamepakMemory;
 	};
 }

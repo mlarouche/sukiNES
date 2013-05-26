@@ -1,7 +1,11 @@
 #include "cpu.h"
 
+// STL includes
+#include <algorithm>
+
 // Local includes
 #include "assert.h"
+#include "inputio.h"
 #include "memory.h"
 #include "ppu.h"
 
@@ -1420,9 +1424,14 @@ namespace sukiNES
 	Cpu::Cpu()
 	: _memory(nullptr)
 	, _ppu(nullptr)
+	, _inputStrobe(0)
+	, _inputIO(nullptr)
 	, _nmiOccured(false)
 	, _insideIrq(false)
 	{
+		std::fill(std::begin(_buttonStatus), std::end(_buttonStatus), 0);
+		std::fill(std::begin(_inputReadCounter), std::end(_inputReadCounter), 0);
+
 		_registers.StackPointer = 0xFF;
 		_registers.A = 0;
 		_registers.X = 0;
@@ -1541,16 +1550,80 @@ namespace sukiNES
 	byte Cpu::readMemory(word address)
 	{
 		tick();
-		return _memory->read(address);
+
+		byte readValue = 0;
+
+		if (address >= 0x4016 && address <= 0x4017)
+		{
+			switch(address.lowByte())
+			{
+				case 0x16:
+				case 0x17:
+				{
+					byte whichController = address.lowByte() & 0x1;
+					if (_inputStrobe == 0)
+					{
+						if (_inputReadCounter[whichController] < 8)
+						{
+							readValue = ((_buttonStatus[whichController] >> _inputReadCounter[whichController]) & 0x1) | 0x40;
+							++_inputReadCounter[whichController];
+						}
+						else
+						{
+							readValue = 0x41;
+						}
+					}
+					else
+					{
+						readValue = 0x40;
+						if (_inputIO)
+						{
+							readValue |= _inputIO->inputStatus(whichController) & 0x1;
+						}
+					}
+					break;
+				}
+			}
+		}
+		else
+		{
+			readValue = _memory->read(address);
+		}
+
+		return readValue;
 	}
 
 	void Cpu::writeMemory(word address, byte value)
 	{
 		tick();
-		// Start DMA copy
+
 		if (address == 0x4014)
 		{
 			dmaCopy(value);
+		}
+		else if (address >= 0x4016 && address <= 0x4017)
+		{
+			switch(address.lowByte())
+			{
+			case 0x16:
+				if (_inputStrobe == 1 && value == 0)
+				{
+					for (uint32 whichController = 0; whichController<2; ++whichController)
+					{
+						_buttonStatus[whichController] = 0;
+						_inputReadCounter[whichController] = 0;
+
+						if (_inputIO)
+						{
+							_buttonStatus[whichController] = _inputIO->inputStatus(whichController);
+						}
+					}
+				}
+				_inputStrobe = value;
+				break;
+			case 0x17:
+				break;
+			}
 		}
 		else
 		{

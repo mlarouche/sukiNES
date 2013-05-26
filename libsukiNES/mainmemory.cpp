@@ -1,5 +1,8 @@
 #include "mainmemory.h"
 
+// STL includes
+#include <algorithm>
+
 // Local includes
 #include "assert.h"
 
@@ -11,11 +14,10 @@ namespace sukiNES
 	MainMemory::MainMemory()
 	: _ppuMemory(nullptr)
 	, _apuMemory(nullptr)
-	, _inputMemory(nullptr)
 	, _gamepakMemory(nullptr)
 	{
-		memset(_ram, 0, RamSize);
-		memset(_sram, 0, RamSize);
+		std::fill(std::begin(_ram), std::end(_ram), 0);
+		std::fill(std::begin(_sram), std::end(_sram), 0);
 	}
 
 	MainMemory::~MainMemory()
@@ -37,11 +39,6 @@ namespace sukiNES
 		{
 			sukiAssertWithMessage(_apuMemory, "Please set the APU memory access in main memory");
 			return _apuMemory->read(address);
-		}
-		else if (address >= 0x4016 && address < 0x4016)
-		{
-			sukiAssertWithMessage(_inputMemory, "Please set the Input memory access in main memory");
-			return _inputMemory->read(address);
 		}
 		else if (address >= 0x4020 && address < 0x6000)
 		{
@@ -76,11 +73,6 @@ namespace sukiNES
 			//sukiAssertWithMessage(_apuMemory, "Please set the APU memory access in main memory");
 			if (_apuMemory)
 				_apuMemory->write(address, value);
-		}
-		else if (address >= 0x4016 && address < 0x4016)
-		{
-			sukiAssertWithMessage(_inputMemory, "Please set the Input memory access in main memory");
-			_inputMemory->write(address, value);
 		}
 		else if (address >= 0x4020 && address < 0x6000)
 		{

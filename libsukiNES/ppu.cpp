@@ -1,5 +1,8 @@
 #include "ppu.h"
 
+// STL includes
+#include <algorithm>
+
 // Local includes
 #include "gamepak.h"
 #include "ppuio.h"
@@ -62,7 +65,7 @@ namespace sukiNES
 		_rawOAM = reinterpret_cast<byte*>(_sprites);
 		memcpy(_palette, PaletteAtPowerOn, sizeof(PaletteAtPowerOn) / sizeof(byte));
 
-		memset(_nametable, 0, sizeof(_nametable) / sizeof(byte));
+		std::fill(std::begin(_nametable), std::end(_nametable), 0);
 	}
 
 	PPU::~PPU()

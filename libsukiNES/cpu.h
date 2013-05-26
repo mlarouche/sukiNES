@@ -27,6 +27,7 @@ namespace sukiNES
 	};
 
 	class IMemory;
+	class InputIO;
 	class PPU;
 
 	class Cpu
@@ -48,6 +49,11 @@ namespace sukiNES
 		void setPPU(PPU* ppu)
 		{
 			_ppu = ppu;
+		}
+
+		void setInputIO(InputIO* io)
+		{
+			_inputIO = io;
 		}
 
 		word programCounter() const
@@ -118,6 +124,11 @@ namespace sukiNES
 		CpuRegisters _registers;
 		IMemory* _memory;
 		PPU* _ppu;
+
+		byte _inputStrobe;
+		byte _buttonStatus[2];
+		byte _inputReadCounter[2];
+		InputIO* _inputIO;
 
 		bool _nmiOccured;
 		bool _insideIrq;

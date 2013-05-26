@@ -4,6 +4,7 @@
 // sukiNES includes
 #include <cpu.h>
 #include <gamepak.h>
+#include <inputio.h>
 #include <inesreader.h>
 #include <mainmemory.h>
 #include <ppu.h>
@@ -98,7 +99,7 @@ public:
 		//SDL_FreeSurface(_destination);
 	}
 
-	virtual void putPixel(sint32 x, sint32 y, byte paletteIndex)
+	virtual void putPixel(sint32 x, sint32 y, byte paletteIndex) override
 	{
 		if (ScalingFactor == 1)
 		{
@@ -116,7 +117,7 @@ public:
 		}
 	}
 
-	virtual void onVBlank()
+	virtual void onVBlank() override
 	{
 		SDL_Flip(_destination);
 	}
@@ -124,6 +125,36 @@ public:
 private:
 	SDL_Surface* _destination;
 	Uint32 _palette[64];
+};
+
+class NesInput : public sukiNES::InputIO
+{
+public:
+	NesInput()
+	{
+		for(uint32 whichController=0; whichController<2; ++whichController)
+		{
+			buttonStatus[whichController].raw = 0;
+		}
+	}
+
+	virtual byte inputStatus(byte controller) const override
+	{
+		return buttonStatus[controller].raw;
+	}
+
+	union
+	{
+		byte raw;
+		RegBit<0> A;
+		RegBit<1> B;
+		RegBit<2> Select;
+		RegBit<3> Start;
+		RegBit<4> Up;
+		RegBit<5> Down;
+		RegBit<6> Left;
+		RegBit<7> Right;
+	} buttonStatus[2];
 };
 
 class EmulatorRunner
@@ -176,6 +207,11 @@ public:
 		_ppu.setIO(io);
 	}
 
+	void setInputIO(sukiNES::InputIO* io)
+	{
+		_cpu.setInputIO(io);
+	}
+
 	void runSingleInstruction()
 	{
 		_cpu.executeOpcode();
@@ -216,9 +252,11 @@ int main(int argc, char** argv)
 	SDL_WM_SetCaption("sukiNES 0.1", 0);
 
 	NesScreen emuScreen(screen);
+	NesInput input;
 
 	EmulatorRunner emuRunner;
 	emuRunner.setPPUIO(&emuScreen);
+	emuRunner.setInputIO(&input);
 
 	if (!emuRunner.readROM(RomFilename))
 	{
@@ -240,10 +278,65 @@ int main(int argc, char** argv)
 				case SDL_QUIT:
 					exit(0);
 					break;
+				case SDL_KEYDOWN:
+				{
+					switch(event.key.keysym.sym)
+					{
+						case SDLK_z:
+							input.buttonStatus[0].A = true;
+							break;
+						case SDLK_x:
+							input.buttonStatus[0].B = true;
+							break;
+						case SDLK_LCTRL:
+							input.buttonStatus[0].Start = true;
+							break;
+						case SDLK_LALT:
+							input.buttonStatus[0].Select = true;
+							break;
+						case SDLK_UP:
+							input.buttonStatus[0].Up = true;
+							break;
+						case SDLK_DOWN:
+							input.buttonStatus[0].Down = true;
+							break;
+						case SDLK_LEFT:
+							input.buttonStatus[0].Left = true;
+							break;
+						case SDLK_RIGHT:
+							input.buttonStatus[0].Right = true;
+							break;
+					}
+					break;
+				}
 				case SDL_KEYUP:
 				{
 					switch(event.key.keysym.sym)
 					{
+						case SDLK_z:
+							input.buttonStatus[0].A = false;
+							break;
+						case SDLK_x:
+							input.buttonStatus[0].B = false;
+							break;
+						case SDLK_LCTRL:
+							input.buttonStatus[0].Start = false;
+							break;
+						case SDLK_LALT:
+							input.buttonStatus[0].Select = false;
+							break;
+						case SDLK_UP:
+							input.buttonStatus[0].Up = false;
+							break;
+						case SDLK_DOWN:
+							input.buttonStatus[0].Down = false;
+							break;
+						case SDLK_LEFT:
+							input.buttonStatus[0].Left = false;
+							break;
+						case SDLK_RIGHT:
+							input.buttonStatus[0].Right = false;
+							break;
 						case SDLK_ESCAPE:
 							exit(0);
 							break;
