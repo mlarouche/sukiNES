@@ -17,3 +17,8 @@
 /roms
 
 /sukiNES/*.user
+/libsukiNES/*.user
+/libsukiNES/x64
+/sukiNES/x64/
+/sukiNES_StressTest/x64/
+/x64/

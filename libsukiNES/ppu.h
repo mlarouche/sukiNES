@@ -15,7 +15,7 @@ namespace sukiNES
 	{
 	public:
 		PPU();
-		~PPU();
+		virtual ~PPU();
 
 		virtual byte read(word address);
 		virtual void write(word address, byte value);

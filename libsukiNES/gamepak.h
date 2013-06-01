@@ -51,12 +51,12 @@ namespace sukiNES
 			_mirroring = value;
 		}
 
-		uint32 romPageCount() const
+		size_t romPageCount() const
 		{
 			return _romData.size() / RomBankSize;
 		}
 
-		uint32 chrPageCount() const
+		size_t chrPageCount() const
 		{
 			return _chrData.size() / ChrBankSize;
 		}

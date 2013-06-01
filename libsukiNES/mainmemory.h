@@ -8,7 +8,7 @@ namespace sukiNES
 	{
 	public:
 		MainMemory();
-		~MainMemory();
+		virtual ~MainMemory();
 
 		virtual byte read(word address) ;
 		virtual void write(word address, byte value);
