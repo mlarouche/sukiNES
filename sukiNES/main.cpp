@@ -226,10 +226,10 @@ private:
 
 //static const char* RomFilename = "Donkey Kong (World) (Rev A).nes";
 //static const char* RomFilename = "Excitebike (Japan, USA).nes";
-static const char* RomFilename = "Super Mario Bros. (World).nes";
+//static const char* RomFilename = "Super Mario Bros. (World).nes";
 //static const char* RomFilename = "Ice Climber (USA, Europe).nes";
 //static const char* RomFilename = "Balloon Fight (USA).nes";
-//static const char* RomFilename = "NEStress.NES";
+static const char* RomFilename = "input_test.NES";
 
 int main(int argc, char** argv)
 {

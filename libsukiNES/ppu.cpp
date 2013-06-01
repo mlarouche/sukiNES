@@ -473,7 +473,7 @@ namespace sukiNES
 	{
 		_tempBackgroundPattern = 0;
 
-		u16 chrAddress = 0;
+		uint16 chrAddress = 0;
 		chrAddress = ((unsigned)_ppuControl.backgroundPatternTable) * 0x1000;
 		chrAddress |= _lastReadNametableByte * 16 + (unsigned)_currentPpuAddress.fineYScroll;
 
@@ -482,13 +482,13 @@ namespace sukiNES
 
 	void PPU::_highBackgroundByteFetch()
 	{
-		u16 chrAddress = 0;
+		uint16 chrAddress = 0;
 		chrAddress = ((unsigned)_ppuControl.backgroundPatternTable) * 0x1000;
 		chrAddress |= (_lastReadNametableByte * 16) + 8 + (unsigned)_currentPpuAddress.fineYScroll;
 
 		_tempBackgroundPattern.setHighByte( _internalRead(chrAddress) );
 
-		_backgroundPatternQueue.push( (u16)_tempBackgroundPattern );
+		_backgroundPatternQueue.push( (uint16)_tempBackgroundPattern );
 	}
 
 	void PPU::_prepareNextTile()

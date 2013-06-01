@@ -137,26 +137,26 @@ namespace sukiNES
 		// Aka Loopy_T
 		union
 		{
-			u16 raw;
-			RegBit<0, 5, u16> coarseXScroll;
-			RegBit<5, 5, u16> coarseYScroll;
-			RegBit<10, 2, u16> nametableSelect;
-			RegBit<12, 3, u16> fineYScroll;
+			uint16 raw;
+			RegBit<0, 5, uint16> coarseXScroll;
+			RegBit<5, 5, uint16> coarseYScroll;
+			RegBit<10, 2, uint16> nametableSelect;
+			RegBit<12, 3, uint16> fineYScroll;
 
 			// Special fields used by PPU register PpuAddress
-			RegBit<8, 6, u16> highByteAddress;
-			RegBit<0, 8, u16> lowByteAddress;
-			RegBit<14, 1, u16> clearBit14;
+			RegBit<8, 6, uint16> highByteAddress;
+			RegBit<0, 8, uint16> lowByteAddress;
+			RegBit<14, 1, uint16> clearBit14;
 		} _temporaryPpuAddress;
 
 		// Aka Loopy_V
 		union
 		{
-			u16 raw;
-			RegBit<0, 5, u16> coarseXScroll;
-			RegBit<5, 5, u16> coarseYScroll;
-			RegBit<10, 2, u16> nametableSelect;
-			RegBit<12, 3, u16> fineYScroll;
+			uint16 raw;
+			RegBit<0, 5, uint16> coarseXScroll;
+			RegBit<5, 5, uint16> coarseYScroll;
+			RegBit<10, 2, uint16> nametableSelect;
+			RegBit<12, 3, uint16> fineYScroll;
 		} _currentPpuAddress;
 
 		// Aka Loopy_W
@@ -206,7 +206,7 @@ namespace sukiNES
 		PPUIO* _io;
 
 		byte _lastReadNametableByte;
-		std::queue<u16> _backgroundPatternQueue;
+		std::queue<uint16> _backgroundPatternQueue;
 		std::queue<byte> _backgroundAttributeQueue;
 
 		word _currentBackgroundPattern;

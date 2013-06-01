@@ -1108,7 +1108,7 @@ namespace sukiNES
 	{
 		static inline void execute(Cpu* cpu)
 		{
-			u16 temp = static_cast<u16>(Addressing::read(cpu));
+			uint16 temp = static_cast<uint16>(Addressing::read(cpu));
 			temp <<= 1;
 			if(Flag<Carry>::read(cpu))
 			{
@@ -1135,7 +1135,7 @@ namespace sukiNES
 	{
 		static inline void execute(Cpu* cpu)
 		{
-			u16 temp = static_cast<u16>(Addressing::read(cpu));
+			uint16 temp = static_cast<uint16>(Addressing::read(cpu));
 			if(Flag<Carry>::read(cpu))
 			{
 				temp |= 0x100;
@@ -1322,7 +1322,7 @@ namespace sukiNES
 	{
 		static inline void execute(Cpu* cpu)
 		{
-			u16 temp = static_cast<u16>(Addressing::read(cpu));
+			uint16 temp = static_cast<uint16>(Addressing::read(cpu));
 			temp <<= 1;
 			if(Flag<Carry>::read(cpu))
 			{
@@ -1358,7 +1358,7 @@ namespace sukiNES
 	{
 		static inline void execute(Cpu* cpu)
 		{
-			u16 temp = static_cast<u16>(Addressing::read(cpu));
+			uint16 temp = static_cast<uint16>(Addressing::read(cpu));
 			if(Flag<Carry>::read(cpu))
 			{
 				temp |= 0x100;

@@ -211,7 +211,7 @@ private:
 };
 
 // From bisqwit nesemu1
-template<unsigned bit, unsigned nbits=1, typename T=u8>
+template<unsigned bit, unsigned nbits=1, typename T=uint8>
 struct RegBit
 {
 	T data;
