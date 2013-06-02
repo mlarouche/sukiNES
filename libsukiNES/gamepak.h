@@ -17,6 +17,11 @@ namespace sukiNES
 		GamePak();
 		~GamePak();
 
+		bool hasGamePak() const
+		{
+			return _romData.get() && _chrData.get();
+		}
+
 		virtual byte read(word address);
 		virtual void write(word address, byte value);
 

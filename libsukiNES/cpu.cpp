@@ -1490,10 +1490,10 @@ namespace sukiNES
 		{
 			_instructions[opcode](this);
 		}
-		else
+		/*else
 		{
 			sukiAssertWithMessage(false, "Opcode not implemented yet !");
-		}
+		}*/
 
 		_registers.ProgramCounter++;
 
