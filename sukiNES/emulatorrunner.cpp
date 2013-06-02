@@ -1,7 +1,7 @@
 #include "emulatorrunner.h"
 
 // Qt includes
-#include <windows.h>
+#include <QtCore/QTimer>
 
 // sukiNES includes
 #include <ppuio.h>
@@ -89,6 +89,11 @@ void EmulatorRunner::resumeEmulation()
 void EmulatorRunner::quitThread()
 {
 	_isThreadRunning = false;
+}
+
+void EmulatorRunner::sendCpuUpdated()
+{
+	emit cpuUpdated(&_cpu);
 }
 
 void EmulatorRunner::run()

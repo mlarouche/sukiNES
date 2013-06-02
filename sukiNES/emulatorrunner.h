@@ -36,6 +36,9 @@ public:
 		return _isEmulationRunning;
 	}
 
+signals:
+	void cpuUpdated(sukiNES::Cpu* cpu);
+
 public slots:
 	void powerOn();
 	void reset();
@@ -44,6 +47,9 @@ public slots:
 
 protected:
 	virtual void run() override;
+
+private slots:
+	void sendCpuUpdated();
 
 private:
 	sukiNES::Cpu _cpu;

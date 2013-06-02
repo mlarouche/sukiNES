@@ -2,9 +2,11 @@
 
 #include <QtWidgets/QMainWindow>
 
+class CpuRegisterDockWidget;
 class EmulatorRunner;
 class EmulatorWidget;
 
+class QAction;
 class QCloseEvent;
 
 class sukiNESMainWindow : public QMainWindow
@@ -20,6 +22,7 @@ protected:
 private slots:
 	void openROM();
 	void about();
+	void toggleCpuRegisterDockWidget(bool checked);
 
 private:
 	void _init();
@@ -27,7 +30,10 @@ private:
 	void _initCentralWidget();
 
 private:
+	CpuRegisterDockWidget* _cpuRegisterDockWidget;
 	EmulatorRunner* _emulatorRunner;
 	EmulatorWidget* _emulatorWidget;
+
+	QAction* _actionCpuRegister;
 };
 

@@ -9,11 +9,16 @@
 #include <QtWidgets/QMessageBox>
 
 // Local includes
+#include "cpuregisterdockwidget.h"
 #include "emulatorrunner.h"
 #include "emulatorwidget.h"
 
 sukiNESMainWindow::sukiNESMainWindow(QWidget *parent)
 : QMainWindow(parent)
+, _cpuRegisterDockWidget(nullptr)
+, _emulatorRunner(nullptr)
+, _emulatorWidget(nullptr)
+, _actionCpuRegister(nullptr)
 {
 	_emulatorRunner = new EmulatorRunner(this);
 
@@ -61,6 +66,13 @@ void sukiNESMainWindow::_initMenu()
 	resetAction->setShortcut(Qt::Key_F6);
 	QObject::connect(resetAction, &QAction::triggered, _emulatorRunner, &EmulatorRunner::reset);
 	emulationMenu->addAction(resetAction);
+
+	QMenu* debugMenu = menuBar()->addMenu(tr("Debug"));
+
+	_actionCpuRegister = new QAction(tr("CPU registers"), this);
+	_actionCpuRegister->setCheckable(true);
+	QObject::connect(_actionCpuRegister, &QAction::triggered, this, &sukiNESMainWindow::toggleCpuRegisterDockWidget);
+	debugMenu->addAction(_actionCpuRegister);
 
 	QMenu *helpMenu = menuBar()->addMenu( tr("&Help") );
 
@@ -130,4 +142,27 @@ void sukiNESMainWindow::openROM()
 void sukiNESMainWindow::about()
 {
 	QMessageBox::about(this, tr("sukiNES"), tr("sukiNES 0.1\nBy Michael Larouche <michael.larouche@gmail.com>\n\nhttps://github.com/mlarouche/sukiNES"));
+}
+
+void sukiNESMainWindow::toggleCpuRegisterDockWidget(bool checked)
+{
+	if (!_cpuRegisterDockWidget)
+	{
+		_cpuRegisterDockWidget = new CpuRegisterDockWidget(this);
+		QObject::connect(_emulatorRunner, &EmulatorRunner::cpuUpdated, _cpuRegisterDockWidget, &CpuRegisterDockWidget::cpuUpdated);
+		QObject::connect(_cpuRegisterDockWidget, &CpuRegisterDockWidget::onClosed, [this] () {
+			_actionCpuRegister->setChecked(false);
+			_cpuRegisterDockWidget->deleteLater();
+			_cpuRegisterDockWidget = nullptr;
+		} );
+	}
+
+	if (checked)
+	{
+		addDockWidget(Qt::RightDockWidgetArea, _cpuRegisterDockWidget);
+	}
+	else
+	{
+		_cpuRegisterDockWidget->close();
+	}
 }
