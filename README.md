@@ -1,6 +1,6 @@
 sukiNES
 =
-A C++11 Nintendo Entertainment System emulator using SDL.
+A C++11 Nintendo Entertainment System emulator using Qt5 for the GUI.
 Done purely for myself.
 
 Licensed under BSD.
