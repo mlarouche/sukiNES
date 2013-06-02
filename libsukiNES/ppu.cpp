@@ -161,13 +161,13 @@ namespace sukiNES
 		{
 			if (_isRenderingEnabled())
 			{
-				if (_cycleCountPerScanline % 8 == 0)
-				{
-					_prepareNextTile();
-				}
-
 				if (_cycleCountPerScanline >= 0 && _cycleCountPerScanline < 256)
 				{
+					if (_cycleCountPerScanline % 8 == 0)
+					{
+						_prepareNextTile();
+					}
+
 					_renderPixel();
 				}
 
@@ -600,8 +600,9 @@ namespace sukiNES
 
 		paletteIndex.raw = 0;
 
-		uint32 column = 7 - ((_cycleCountPerScanline % 8));
-		byte whichAttribute = ((_cycleCountPerScanline & 0x1F) > 0xF ? 1 : 0) + ((_currentScanline & 0x1F) > 0xF ? 2 : 0);
+		byte whichPixel = _cycleCountPerScanline;
+		uint32 column = 7 - (whichPixel % 8);
+		byte whichAttribute = ((whichPixel & 0x1F) > 0xF ? 1 : 0) + ((_currentScanline & 0x1F) > 0xF ? 2 : 0);
 
 		paletteIndex.pixelTile = ((_currentBackgroundPattern.lowByte() >> column) & 0x1)
 			| (((_currentBackgroundPattern.highByte() >> column) & 0x1) << 1);
