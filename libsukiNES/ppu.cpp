@@ -475,7 +475,7 @@ namespace sukiNES
 
 		uint16 chrAddress = 0;
 		chrAddress = ((unsigned)_ppuControl.backgroundPatternTable) * 0x1000;
-		chrAddress |= _lastReadNametableByte * 16 + (unsigned)_currentPpuAddress.fineYScroll;
+		chrAddress |= (_lastReadNametableByte * 16) + (unsigned)_currentPpuAddress.fineYScroll;
 
 		_tempBackgroundPattern.setLowByte( _internalRead(chrAddress) );
 	}
@@ -538,12 +538,12 @@ namespace sukiNES
 	{
 		if ((unsigned)_currentPpuAddress.fineYScroll < 7)
 		{
-			_currentPpuAddress.fineYScroll = (unsigned)_currentPpuAddress.fineYScroll + 1;
+			_currentPpuAddress.fineYScroll = ((unsigned)_currentPpuAddress.fineYScroll) + 1;
 		}
 		else
 		{
-			_currentPpuAddress.raw &= 0x0FFF;
-			sint32 y = (unsigned)_currentPpuAddress.coarseYScroll;
+			_currentPpuAddress.fineYScroll = 0;
+			unsigned y = (unsigned)_currentPpuAddress.coarseYScroll;
 			if (y == 29)
 			{
 				y = 0;
