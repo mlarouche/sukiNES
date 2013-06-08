@@ -5,6 +5,7 @@
 class CpuRegisterDockWidget;
 class EmulatorRunner;
 class EmulatorWidget;
+class PPUDebugInfoDialog;
 
 class QAction;
 class QCloseEvent;
@@ -22,7 +23,8 @@ protected:
 private slots:
 	void openROM();
 	void about();
-	void toggleCpuRegisterDockWidget(bool checked);
+	void toggleCpuRegisterDockWidget(bool isChecked);
+	void togglePPUDebugInfoDialog(bool isChecked);
 
 private:
 	void _init();
@@ -33,7 +35,9 @@ private:
 	CpuRegisterDockWidget* _cpuRegisterDockWidget;
 	EmulatorRunner* _emulatorRunner;
 	EmulatorWidget* _emulatorWidget;
+	PPUDebugInfoDialog* _ppuDebugInfoDialog;
 
 	QAction* _actionCpuRegister;
+	QAction* _actionPPUDebugInfo;
 };
 

@@ -17,6 +17,8 @@ namespace sukiNES
 	class InputIO;
 }
 
+class QTimer;
+
 class EmulatorRunner : public QThread
 {
 	Q_OBJECT
@@ -38,6 +40,7 @@ public:
 
 signals:
 	void cpuUpdated(sukiNES::Cpu* cpu);
+	void ppuUpdated(sukiNES::PPU* ppu);
 
 public slots:
 	void powerOn();
@@ -50,6 +53,7 @@ protected:
 
 private slots:
 	void sendCpuUpdated();
+	void sendPpuUpdated();
 
 private:
 	sukiNES::Cpu _cpu;
@@ -61,4 +65,6 @@ private:
 
 	bool _isThreadRunning;
 	bool _isEmulationRunning;
+
+	QTimer* _tempTimer;
 };

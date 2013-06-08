@@ -20,6 +20,10 @@ EmulatorRunner::EmulatorRunner(QObject* parent)
 
 	_cpu.setPPU(&_ppu);
 	_cpu.setMainMemory(&_mainMemory);
+
+	_tempTimer = new QTimer(this);
+	QObject::connect(_tempTimer, &QTimer::timeout, this, &EmulatorRunner::sendCpuUpdated);
+	QObject::connect(_tempTimer, &QTimer::timeout, this, &EmulatorRunner::sendPpuUpdated);
 }
 
 void EmulatorRunner::powerOn()
@@ -78,12 +82,16 @@ void EmulatorRunner::stopEmulation()
 {
 	QMutexLocker autoLock(&_emulationMutex);
 	_isEmulationRunning = false;
+
+	_tempTimer->stop();
 }
 
 void EmulatorRunner::resumeEmulation()
 {
 	QMutexLocker autoLock(&_emulationMutex);
 	_isEmulationRunning = true;
+
+	_tempTimer->start(1);
 }
 
 void EmulatorRunner::quitThread()
@@ -94,6 +102,11 @@ void EmulatorRunner::quitThread()
 void EmulatorRunner::sendCpuUpdated()
 {
 	emit cpuUpdated(&_cpu);
+}
+
+void EmulatorRunner::sendPpuUpdated()
+{
+	emit ppuUpdated(&_ppu);
 }
 
 void EmulatorRunner::run()

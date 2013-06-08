@@ -77,6 +77,9 @@
     <ClCompile Include="cpuregisterdockwidget.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ppudebuginfodialog.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="sukinesmainwindow.h">
@@ -97,6 +100,9 @@
     <CustomBuild Include="cpuregisterdockwidget.h">
       <Filter>Header Files</Filter>
     </CustomBuild>
+    <CustomBuild Include="ppudebuginfodialog.ui">
+      <Filter>Form Files</Filter>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="sukiNES.rc" />
@@ -104,6 +110,12 @@
   <ItemGroup>
     <ClInclude Include="GeneratedFiles\ui_cpuregisterdockwidget.h">
       <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GeneratedFiles\ui_ppudebuginfodialog.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ppudebuginfodialog.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

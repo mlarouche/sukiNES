@@ -67,6 +67,8 @@ namespace sukiNES
 			return (unsigned)_ppuControl.generateNmi && (unsigned)_ppuStatus.vblankStarted;
 		}
 
+		friend class PPUDebugInfoDialog;
+
 	private:
 		bool _isRenderingEnabled() const;
 		bool _isOutsideRendering() const;
@@ -115,14 +117,14 @@ namespace sukiNES
 		union
 		{
 			byte raw;
-			RegBit<0> grayscale;
+			RegBit<0> greyscale;
 			RegBit<1> showBackgroundLeftmost;
 			RegBit<2> showSpritesLeftmost;
 			RegBit<3> showBackground;
 			RegBit<4> showSprites;
-			RegBit<5> intensityRed;
-			RegBit<6> intensityGreen;
-			RegBit<7> intensityBlue;
+			RegBit<5> intensifyRed;
+			RegBit<6> intensifyGreen;
+			RegBit<7> intensifyBlue;
 		} _ppuMask;
 
 		union

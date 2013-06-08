@@ -12,13 +12,16 @@
 #include "cpuregisterdockwidget.h"
 #include "emulatorrunner.h"
 #include "emulatorwidget.h"
+#include "ppudebuginfodialog.h"
 
 sukiNESMainWindow::sukiNESMainWindow(QWidget *parent)
 : QMainWindow(parent)
 , _cpuRegisterDockWidget(nullptr)
 , _emulatorRunner(nullptr)
 , _emulatorWidget(nullptr)
+, _ppuDebugInfoDialog(nullptr)
 , _actionCpuRegister(nullptr)
+, _actionPPUDebugInfo(nullptr)
 {
 	_emulatorRunner = new EmulatorRunner(this);
 
@@ -73,6 +76,11 @@ void sukiNESMainWindow::_initMenu()
 	_actionCpuRegister->setCheckable(true);
 	QObject::connect(_actionCpuRegister, &QAction::triggered, this, &sukiNESMainWindow::toggleCpuRegisterDockWidget);
 	debugMenu->addAction(_actionCpuRegister);
+
+	_actionPPUDebugInfo = new QAction(tr("PPU Debug Info"), this);
+	_actionPPUDebugInfo->setCheckable(true);
+	QObject::connect(_actionPPUDebugInfo, &QAction::triggered, this, &sukiNESMainWindow::togglePPUDebugInfoDialog);
+	debugMenu->addAction(_actionPPUDebugInfo);
 
 	QMenu *helpMenu = menuBar()->addMenu( tr("&Help") );
 
@@ -144,7 +152,7 @@ void sukiNESMainWindow::about()
 	QMessageBox::about(this, tr("sukiNES"), tr("sukiNES 0.1\nBy Michael Larouche <michael.larouche@gmail.com>\n\nhttps://github.com/mlarouche/sukiNES"));
 }
 
-void sukiNESMainWindow::toggleCpuRegisterDockWidget(bool checked)
+void sukiNESMainWindow::toggleCpuRegisterDockWidget(bool isChecked)
 {
 	if (!_cpuRegisterDockWidget)
 	{
@@ -157,12 +165,36 @@ void sukiNESMainWindow::toggleCpuRegisterDockWidget(bool checked)
 		} );
 	}
 
-	if (checked)
+	if (isChecked)
 	{
 		addDockWidget(Qt::RightDockWidgetArea, _cpuRegisterDockWidget);
 	}
 	else
 	{
 		_cpuRegisterDockWidget->close();
+	}
+}
+
+void sukiNESMainWindow::togglePPUDebugInfoDialog(bool isChecked)
+{
+	if (!_ppuDebugInfoDialog)
+	{
+		_ppuDebugInfoDialog = new PPUDebugInfoDialog(this);
+
+		QObject::connect(_emulatorRunner, &EmulatorRunner::ppuUpdated, _ppuDebugInfoDialog, &PPUDebugInfoDialog::updatePPUInfo);
+		QObject::connect(_ppuDebugInfoDialog, &PPUDebugInfoDialog::finished, [this] (int) {
+			_actionPPUDebugInfo->setChecked(false);
+			_ppuDebugInfoDialog->deleteLater();
+			_ppuDebugInfoDialog = nullptr;
+		} );
+	}
+
+	if (isChecked)
+	{
+		_ppuDebugInfoDialog->show();
+	}
+	else
+	{
+		_ppuDebugInfoDialog->close();
 	}
 }
