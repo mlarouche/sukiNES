@@ -4,6 +4,7 @@
 #include <QtCore/QThread>
 #include <QtCore/QMutex>
 #include <QtCore/QMutexLocker>
+#include <QtCore/QQueue>
 
 // sukiNES includes
 #include <cpu.h>
@@ -23,6 +24,15 @@ class EmulatorRunner : public QThread
 {
 	Q_OBJECT
 public:
+	enum class Command
+	{
+		PowerOn,
+		Reset,
+		StopEmulation,
+		ResumeEmulation,
+		Step
+	};
+
 	EmulatorRunner(QObject* parent = nullptr);
 
 	void setPPUIO(sukiNES::PPUIO* io);
@@ -38,15 +48,11 @@ public:
 		return _isEmulationRunning;
 	}
 
+	void doCommand(Command value);
+
 signals:
 	void cpuUpdated(sukiNES::Cpu* cpu);
 	void ppuUpdated(sukiNES::PPU* ppu);
-
-public slots:
-	void powerOn();
-	void reset();
-	void stopEmulation();
-	void resumeEmulation();
 
 protected:
 	virtual void run() override;
@@ -62,6 +68,8 @@ private:
 	sukiNES::PPU _ppu;
 
 	mutable QMutex _emulationMutex;
+
+	QQueue<Command> _commands;
 
 	bool _isThreadRunning;
 	bool _isEmulationRunning;

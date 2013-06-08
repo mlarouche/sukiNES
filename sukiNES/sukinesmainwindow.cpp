@@ -62,15 +62,46 @@ void sukiNESMainWindow::_initMenu()
 
 	QAction* powerOnAction = new QAction(tr("Power on"), this);
 	powerOnAction->setShortcut(Qt::Key_F5);
-	QObject::connect(powerOnAction, &QAction::triggered, _emulatorRunner, &EmulatorRunner::powerOn);
+	QObject::connect(powerOnAction, &QAction::triggered, [this] () {
+		_emulatorRunner->doCommand(EmulatorRunner::Command::PowerOn);
+	});
+
 	emulationMenu->addAction(powerOnAction);
 
 	QAction* resetAction = new QAction(tr("Reset"), this);
 	resetAction->setShortcut(Qt::Key_F6);
-	QObject::connect(resetAction, &QAction::triggered, _emulatorRunner, &EmulatorRunner::reset);
+	QObject::connect(resetAction, &QAction::triggered, [this] () {
+		_emulatorRunner->doCommand(EmulatorRunner::Command::Reset);
+	});
 	emulationMenu->addAction(resetAction);
 
+	emulationMenu->addSeparator();
+
+	QAction* pauseAction = new QAction(tr("Pause"), this);
+	pauseAction->setShortcut(Qt::Key_F7);
+	QObject::connect(pauseAction, &QAction::triggered, [this] () {
+		_emulatorRunner->doCommand(EmulatorRunner::Command::StopEmulation);
+	});
+	emulationMenu->addAction(pauseAction);
+
+	QAction* resumeAction = new QAction(tr("Resume"), this);
+	resumeAction->setShortcut(Qt::Key_F8);
+	QObject::connect(resumeAction, &QAction::triggered, [this] () {
+		_emulatorRunner->doCommand(EmulatorRunner::Command::ResumeEmulation);
+	});
+	emulationMenu->addAction(resumeAction);
+
 	QMenu* debugMenu = menuBar()->addMenu(tr("Debug"));
+
+	QAction* debugStepAction = new QAction(tr("Step"), this);
+	debugStepAction->setShortcut(Qt::Key_F10);
+	QObject::connect(debugStepAction, &QAction::triggered, [this] () {
+		_emulatorRunner->doCommand(EmulatorRunner::Command::Step);
+		_emulatorWidget->callRepaint();
+	});
+	debugMenu->addAction(debugStepAction);
+
+	debugMenu->addSeparator();
 
 	_actionCpuRegister = new QAction(tr("CPU registers"), this);
 	_actionCpuRegister->setCheckable(true);
@@ -111,7 +142,10 @@ void sukiNESMainWindow::openROM()
 {
 	bool wasEmulationRunning = _emulatorRunner->isEmulationRunning();
 
-	_emulatorRunner->stopEmulation();
+	if (wasEmulationRunning)
+	{
+		_emulatorRunner->doCommand(EmulatorRunner::Command::StopEmulation);
+	}
 
 	QString romFilename = QFileDialog::getOpenFileName(this, tr("Open NES ROM"), QString(), tr("NES file (*.nes)"));
 	if(!romFilename.isEmpty())
@@ -124,7 +158,7 @@ void sukiNESMainWindow::openROM()
 
 			setWindowTitle(tr("sukiNES - %1").arg(fileInfo.fileName()));
 
-			_emulatorRunner->powerOn();
+			_emulatorRunner->doCommand(EmulatorRunner::Command::PowerOn);
 			if (!_emulatorRunner->isRunning())
 			{
 				_emulatorRunner->start();
@@ -134,7 +168,7 @@ void sukiNESMainWindow::openROM()
 		{
 			if (wasEmulationRunning)
 			{
-				_emulatorRunner->resumeEmulation();
+				_emulatorRunner->doCommand(EmulatorRunner::Command::ResumeEmulation);
 			}
 		}
 	}
@@ -142,7 +176,7 @@ void sukiNESMainWindow::openROM()
 	{
 		if (wasEmulationRunning)
 		{
-			_emulatorRunner->resumeEmulation();
+			_emulatorRunner->doCommand(EmulatorRunner::Command::ResumeEmulation);
 		}
 	}
 }

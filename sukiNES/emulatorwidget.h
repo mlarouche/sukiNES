@@ -33,13 +33,13 @@ public:
 	// InputIO
 	virtual byte inputStatus(byte controller) const override;
 
+public slots:
+	void callRepaint();
+
 protected:
 	virtual void paintEvent(QPaintEvent* event) override;
 	virtual void keyPressEvent(QKeyEvent* event) override;
 	virtual void keyReleaseEvent(QKeyEvent* event) override;
-
-private slots:
-	void callRepaint();
 
 private:
 	QImage _screenBuffer;

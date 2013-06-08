@@ -26,39 +26,6 @@ EmulatorRunner::EmulatorRunner(QObject* parent)
 	QObject::connect(_tempTimer, &QTimer::timeout, this, &EmulatorRunner::sendPpuUpdated);
 }
 
-void EmulatorRunner::powerOn()
-{
-	if (!_gamePak.hasGamePak())
-	{
-		return;
-	}
-
-	stopEmulation();
-
-	_cpu.powerOn();
-	
-	resumeEmulation();
-}
-
-void EmulatorRunner::reset()
-{
-	if (!_gamePak.hasGamePak())
-	{
-		return;
-	}
-
-	bool wasEmulationRunning = isEmulationRunning();
-
-	stopEmulation();
-
-	_cpu.reset();
-
-	if (wasEmulationRunning)
-	{
-		resumeEmulation();
-	}
-}
-
 void EmulatorRunner::setInputIO(sukiNES::InputIO* io)
 {
 	_cpu.setInputIO(io);
@@ -78,25 +45,15 @@ bool EmulatorRunner::loadRom(const QString& romFilename)
 	return nesReader.read(romFilename.toLocal8Bit().constData());
 }
 
-void EmulatorRunner::stopEmulation()
-{
-	QMutexLocker autoLock(&_emulationMutex);
-	_isEmulationRunning = false;
-
-	_tempTimer->stop();
-}
-
-void EmulatorRunner::resumeEmulation()
-{
-	QMutexLocker autoLock(&_emulationMutex);
-	_isEmulationRunning = true;
-
-	_tempTimer->start(1);
-}
-
 void EmulatorRunner::quitThread()
 {
 	_isThreadRunning = false;
+}
+
+void EmulatorRunner::doCommand(EmulatorRunner::Command command)
+{
+	QMutexLocker locker(&_emulationMutex);
+	_commands.enqueue(command);
 }
 
 void EmulatorRunner::sendCpuUpdated()
@@ -113,6 +70,43 @@ void EmulatorRunner::run()
 {
 	while(_isThreadRunning)
 	{
+		_emulationMutex.lock();
+
+		while(!_commands.isEmpty())
+		{
+			auto commandToDo = _commands.dequeue();
+
+			if (!_gamePak.hasGamePak())
+			{
+				continue;
+			}
+
+			switch(commandToDo)
+			{
+				case Command::PowerOn:
+					_cpu.powerOn();
+					_isEmulationRunning = true;
+					break;
+				case Command::Reset:
+					_cpu.reset();
+					break;
+				case Command::ResumeEmulation:
+					_isEmulationRunning = true;
+					break;
+				case Command::StopEmulation:
+					_isEmulationRunning = false;
+					break;
+				case Command::Step:
+					_isEmulationRunning = false;
+					_cpu.executeOpcode();
+					sendCpuUpdated();
+					sendPpuUpdated();
+					break;
+			}
+		}
+
+		_emulationMutex.unlock();
+
 		if (isEmulationRunning())
 		{
 			_cpu.executeOpcode();
