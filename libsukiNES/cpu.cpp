@@ -1490,10 +1490,10 @@ namespace sukiNES
 		{
 			_instructions[opcode](this);
 		}
-		/*else
+		else
 		{
 			sukiAssertWithMessage(false, "Opcode not implemented yet !");
-		}*/
+		}
 
 		_registers.ProgramCounter++;
 
@@ -1751,6 +1751,7 @@ namespace sukiNES
 
 		registerOpcode< 0x18, Instruction<ClearFlag, Flag<Carry>, void> >();
 		registerOpcode< 0xB8, Instruction<ClearFlag, Flag<Overflow>, void> >();
+		registerOpcode< 0x58, Instruction<ClearFlag, Flag<InterruptDisabled>, void> >();
 		registerOpcode< 0xD8, Instruction<ClearFlag, Flag<Decimal>, void> >();
 
 		registerOpcode< 0x24, Instruction<BIT, ToAddress<NextByte>, void> >();
@@ -1832,7 +1833,7 @@ namespace sukiNES
 		registerOpcode< 0x88, Instruction<Decrement, Register<Y>, void> >();
 		registerOpcode< 0xC6, Instruction<Decrement, ToAddress<NextByte, AddressBehavior::KeepAddress>, void> >();
 		registerOpcode< 0xCA, Instruction<Decrement, Register<X>, void> >();
-		registerOpcode< 0XCE, Instruction<Decrement, ToAddress<NextWord, AddressBehavior::KeepAddress>, void> >();
+		registerOpcode< 0xCE, Instruction<Decrement, ToAddress<NextWord, AddressBehavior::KeepAddress>, void> >();
 		registerOpcode< 0xD6, Instruction<Decrement, ToAddressPlusX<NextByte, AddressBehavior::KeepAddress>, void> >();
 		registerOpcode< 0xDE, Instruction<Decrement, ToAddressPlusX<NextWord, AddressBehavior::KeepAddress>, void> >();
 
@@ -1885,9 +1886,13 @@ namespace sukiNES
 		registerOpcode< 0x7A, Instruction<NOP, void, void> >();
 		registerOpcode< 0x7C, Instruction<NOP, ToAddressPlusX<NextWord>, void> >();
 		registerOpcode< 0x80, Instruction<NOPImmediate, NextByte, void> >();
+		registerOpcode< 0x82, Instruction<NOPImmediate, NextByte, void> >();
+		registerOpcode< 0x89, Instruction<NOPImmediate, NextByte, void> >();
+		registerOpcode< 0xC2, Instruction<NOPImmediate, NextByte, void> >();
 		registerOpcode< 0xD4, Instruction<NOP, ToAddressPlusX<NextByte>, void> >();
 		registerOpcode< 0xDA, Instruction<NOP, void, void> >();
 		registerOpcode< 0xDC, Instruction<NOP, ToAddressPlusX<NextWord>, void> >();
+		registerOpcode< 0xE2, Instruction<NOPImmediate, NextByte, void> >();
 		registerOpcode< 0xF4, Instruction<NOP, ToAddressPlusX<NextByte>, void> >();
 		registerOpcode< 0xFA, Instruction<NOP, void, void> >();
 		registerOpcode< 0xFC, Instruction<NOP, ToAddressPlusX<NextWord>, void> >();
