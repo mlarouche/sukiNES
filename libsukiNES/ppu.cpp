@@ -465,7 +465,10 @@ namespace sukiNES
 
 	void PPU::_attributeFetch()
 	{
-		word attributeAddress = 0x23C0 | (_currentPpuAddress.raw & 0x0C00) | ((_currentPpuAddress.raw >> 4) & 0x38) | ((_currentPpuAddress.raw >> 2) & 0x07);
+		word attributeAddress = 0x23C0
+			| (_currentPpuAddress.raw & 0x0C00) // Nametable select
+			| ((_currentPpuAddress.raw >> 4) & 0x38) // High 3 bits of Coarse Y (y/4)
+			| ((_currentPpuAddress.raw >> 2) & 0x07); // High 3 bits of Coarse X (x/4)
 		_backgroundAttributeQueue.push( _internalRead(attributeAddress) );
 	}
 
@@ -600,9 +603,11 @@ namespace sukiNES
 
 		paletteIndex.raw = 0;
 
-		byte whichPixel = _cycleCountPerScanline;
-		uint32 column = 7 - (whichPixel % 8);
-		byte whichAttribute = ((whichPixel & 0x1F) > 0xF ? 1 : 0) + ((_currentScanline & 0x1F) > 0xF ? 2 : 0);
+		uint32 column = 7 - (_cycleCountPerScanline % 8);
+		auto attributeX = _cycleCountPerScanline / 8;
+		auto attributeY = (unsigned)_currentPpuAddress.coarseYScroll;
+		byte whichAttribute = (((attributeX % 4) >= 2) ? 1 : 0)
+			+ (((attributeY % 4) >= 2) ? 2 : 0);
 
 		paletteIndex.pixelTile = ((_currentBackgroundPattern.lowByte() >> column) & 0x1)
 			| (((_currentBackgroundPattern.highByte() >> column) & 0x1) << 1);
@@ -641,9 +646,11 @@ namespace sukiNES
 				{
 					uint32 inSecondNametable =  ((nameTableAddress & 0x800) >> 1);
 					_readBuffer = _nametable[(nameTableAddress & NametableHorizontalMask) | inSecondNametable];
+					break;
 				}
 				case PPU::NameTableMirroring::Vertical:
 					_readBuffer = _nametable[nameTableAddress & NametableVerticalMask];
+					break;
 				case PPU::NameTableMirroring::FourScreen:
 					break;
 				case PPU::NameTableMirroring::SingleScreen:
@@ -686,9 +693,11 @@ namespace sukiNES
 				{
 					uint32 inSecondNametable =  ((nameTableAddress & 0x800) >> 1);
 					_nametable[(nameTableAddress & NametableHorizontalMask) | inSecondNametable] = value;
+					break;
 				}
 				case PPU::NameTableMirroring::Vertical:
 					_nametable[nameTableAddress & NametableVerticalMask] = value;
+					break;
 				case PPU::NameTableMirroring::FourScreen:
 					break;
 				case PPU::NameTableMirroring::SingleScreen:

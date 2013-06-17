@@ -68,6 +68,7 @@ namespace sukiNES
 		}
 
 		friend class PPUDebugInfoDialog;
+		friend class PPUVideoDialog;
 
 	private:
 		bool _isRenderingEnabled() const;

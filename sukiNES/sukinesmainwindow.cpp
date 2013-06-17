@@ -13,6 +13,7 @@
 #include "emulatorrunner.h"
 #include "emulatorwidget.h"
 #include "ppudebuginfodialog.h"
+#include "ppuvideodialog.h"
 
 sukiNESMainWindow::sukiNESMainWindow(QWidget *parent)
 : QMainWindow(parent)
@@ -20,8 +21,10 @@ sukiNESMainWindow::sukiNESMainWindow(QWidget *parent)
 , _emulatorRunner(nullptr)
 , _emulatorWidget(nullptr)
 , _ppuDebugInfoDialog(nullptr)
+, _ppuVideoDialog(nullptr)
 , _actionCpuRegister(nullptr)
 , _actionPPUDebugInfo(nullptr)
+, _actionPPUVideo(nullptr)
 {
 	_emulatorRunner = new EmulatorRunner(this);
 
@@ -112,6 +115,11 @@ void sukiNESMainWindow::_initMenu()
 	_actionPPUDebugInfo->setCheckable(true);
 	QObject::connect(_actionPPUDebugInfo, &QAction::triggered, this, &sukiNESMainWindow::togglePPUDebugInfoDialog);
 	debugMenu->addAction(_actionPPUDebugInfo);
+
+	_actionPPUVideo = new QAction(tr("PPU Video"), this);
+	_actionPPUVideo->setCheckable(true);
+	QObject::connect(_actionPPUVideo, &QAction::triggered, this, &sukiNESMainWindow::togglePPUVideoDialog);
+	debugMenu->addAction(_actionPPUVideo);
 
 	QMenu *helpMenu = menuBar()->addMenu( tr("&Help") );
 
@@ -230,5 +238,29 @@ void sukiNESMainWindow::togglePPUDebugInfoDialog(bool isChecked)
 	else
 	{
 		_ppuDebugInfoDialog->close();
+	}
+}
+
+void sukiNESMainWindow::togglePPUVideoDialog(bool isChecked)
+{
+	if (!_ppuVideoDialog)
+	{
+		_ppuVideoDialog = new PPUVideoDialog(this);
+
+		QObject::connect(_emulatorRunner, &EmulatorRunner::ppuUpdated, _ppuVideoDialog, &PPUVideoDialog::updatePPUInfo);
+		QObject::connect(_ppuVideoDialog, &PPUVideoDialog::finished, [this] (int) {
+			_actionPPUVideo->setChecked(false);
+			_ppuVideoDialog->deleteLater();
+			_ppuVideoDialog = nullptr;
+		} );
+	}
+
+	if (isChecked)
+	{
+		_ppuVideoDialog->show();
+	}
+	else
+	{
+		_ppuVideoDialog->close();
 	}
 }
