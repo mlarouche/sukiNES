@@ -178,7 +178,7 @@ namespace sukiNES
 		{
 			// Do nothing
 		}
-		else if (_currentScanline >= 241 && _currentScanline < 260)
+		else if (_currentScanline >= 241 && _currentScanline <= 260)
 		{
 			// In VBlank
 			if (_currentScanline == 241 && _cycleCountPerScanline == 1)
@@ -208,10 +208,6 @@ namespace sukiNES
 
 			if (_isRenderingEnabled())
 			{
-				if (_cycleCountPerScanline == 1)
-				{
-					_ppuStatus.raw = 0;
-				}
 				if (_cycleCountPerScanline >= 280 && _cycleCountPerScanline < 305)
 				{
 					_resetVerticalPpuAddress();
@@ -226,149 +222,37 @@ namespace sukiNES
 
 	void PPU::_memoryAccess()
 	{
+		enum class MemoryAccessAction
+		{
+			NametableFetch = 2,
+			AttributeFetch = 4,
+			LowBackgroundTileFetch = 6,
+			HighBackgroundTileFetch = 0
+		};
+
 		if (_cycleCountPerScanline == 0)
 		{
 		}
 		else if(_cycleCountPerScanline >= 1 && _cycleCountPerScanline < 256)
 		{
-			switch(_cycleCountPerScanline)
+			auto whichAction = _cycleCountPerScanline % 8;
+			switch(whichAction)
 			{
-				case 2:
-				case 10:
-				case 18:
-				case 26:
-				case 34:
-				case 42:
-				case 50:
-				case 58:
-				case 66:
-				case 74:
-				case 82:
-				case 90:
-				case 98:
-				case 106:
-				case 114:
-				case 122:
-				case 130:
-				case 138:
-				case 146:
-				case 154:
-				case 162:
-				case 170:
-				case 178:
-				case 186:
-				case 194:
-				case 202:
-				case 210:
-				case 218:
-				case 226:
-				case 234:
-				case 242:
-				case 250:
+				case MemoryAccessAction::NametableFetch:
 					_nametableFetch();
 					break;
-				case 4:
-				case 12:
-				case 20:
-				case 28:
-				case 36:
-				case 44:
-				case 52:
-				case 60:
-				case 68:
-				case 76:
-				case 84:
-				case 92:
-				case 100:
-				case 108:
-				case 116:
-				case 124:
-				case 132:
-				case 140:
-				case 148:
-				case 156:
-				case 164:
-				case 172:
-				case 180:
-				case 188:
-				case 196:
-				case 204:
-				case 212:
-				case 220:
-				case 228:
-				case 236:
-				case 244:
-				case 252:
+				case MemoryAccessAction::AttributeFetch:
 					_attributeFetch();
 					break;
-				case 6:
-				case 14:
-				case 22:
-				case 30:
-				case 38:
-				case 46:
-				case 54:
-				case 62:
-				case 70:
-				case 78:
-				case 86:
-				case 94:
-				case 102:
-				case 110:
-				case 118:
-				case 126:
-				case 134:
-				case 142:
-				case 150:
-				case 158:
-				case 166:
-				case 174:
-				case 182:
-				case 190:
-				case 198:
-				case 206:
-				case 214:
-				case 222:
-				case 230:
-				case 238:
-				case 246:
-				case 254:
+				case MemoryAccessAction::LowBackgroundTileFetch:
 					_lowBackgroundByteFetch();
 					break;
-				case 8:
-				case 16:
-				case 24:
-				case 32:
-				case 40:
-				case 48:
-				case 56:
-				case 64:
-				case 72:
-				case 80:
-				case 88:
-				case 96:
-				case 104:
-				case 112:
-				case 120:
-				case 128:
-				case 136:
-				case 144:
-				case 152:
-				case 160:
-				case 168:
-				case 176:
-				case 184:
-				case 192:
-				case 200:
-				case 208:
-				case 216:
-				case 224:
-				case 232:
-				case 240:
-				case 248:
+				case MemoryAccessAction::HighBackgroundTileFetch:
 					_highBackgroundByteFetch();
 
 					_incrementPpuAddressHorizontal();
+					break;
+				default:
 					break;
 			}
 		}
@@ -389,41 +273,37 @@ namespace sukiNES
 		}
 		else if(_cycleCountPerScanline >= 321 && _cycleCountPerScanline < 337)
 		{
-			switch(_cycleCountPerScanline)
+			if (_cycleCountPerScanline == 321)
 			{
-				case 321:
-					while (!_backgroundAttributeQueue.empty())
-					{
-						_backgroundAttributeQueue.pop();
-					}
-					while (!_backgroundPatternQueue.empty())
-					{
-						_backgroundPatternQueue.pop();
-					}
-					break;
-				case 322:
-				case 330:
+				while (!_backgroundAttributeQueue.empty())
+				{
+					_backgroundAttributeQueue.pop();
+				}
+				while (!_backgroundPatternQueue.empty())
+				{
+					_backgroundPatternQueue.pop();
+				}
+			}
+
+			auto whichAction = _cycleCountPerScanline % 8;
+			switch(whichAction)
+			{
+				case MemoryAccessAction::NametableFetch:
 					_nametableFetch();
 					break;
-				case 324:
-				case 332:
+				case MemoryAccessAction::AttributeFetch:
 					_attributeFetch();
 					break;
-				case 326:
-				case 334:
+				case MemoryAccessAction::LowBackgroundTileFetch:
 					_lowBackgroundByteFetch();
 					break;
-				case 328:
-				case 336:
+				case MemoryAccessAction::HighBackgroundTileFetch:
 					_highBackgroundByteFetch();
+
+					_incrementPpuAddressHorizontal();
 					break;
 				default:
 					break;
-			}
-
-			if (_cycleCountPerScanline % 8 == 0)
-			{
-				_incrementPpuAddressHorizontal();
 			}
 		}
 		else
@@ -447,7 +327,7 @@ namespace sukiNES
 
 	bool PPU::_isOutsideRendering() const
 	{
-		if ((_currentScanline >= 240 && _currentScanline < 260) || (_currentScanline == -1))
+		if ((_currentScanline >= 240 && _currentScanline <= 260) || (_currentScanline == -1))
 		{
 			return true;
 		}
@@ -525,7 +405,7 @@ namespace sukiNES
 
 	void PPU::_incrementPpuAddressHorizontal()
 	{
-		if (((unsigned)_currentPpuAddress.coarseXScroll & 0x1F) == 31)
+		if ((unsigned)_currentPpuAddress.coarseXScroll == 31)
 		{
 			_currentPpuAddress.coarseXScroll = 0;
 			// Switch horizontal nametable
@@ -583,7 +463,14 @@ namespace sukiNES
 	{
 		if (_isOutsideRendering())
 		{
-			(unsigned)_ppuControl.addressIncrement ? _currentPpuAddress.raw += 32 : ++_currentPpuAddress.raw;
+			if ((unsigned)_ppuControl.addressIncrement)
+			{
+				_currentPpuAddress.raw += 32;
+			}
+			else
+			{
+				++_currentPpuAddress.raw;
+			}
 		}
 		else
 		{
