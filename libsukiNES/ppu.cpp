@@ -40,9 +40,6 @@ namespace sukiNES
 		PpuData
 	};
 
-	static std::ofstream debugPpuFile;
-	static byte g_LastDataWrite;
-
 	PPU::PPU()
 	: _fineXScroll(0)
 	, _rawOAM(nullptr)
@@ -51,6 +48,7 @@ namespace sukiNES
 	, _currentScanline(PreRenderScanline)
 	, _isEvenFrame(true)
 	, _skipNmi(false)
+	, _irqNotRead(false)
 	, _firstWrite(true)
 	, _readBuffer(0xFF)
 	, _gamePak(nullptr)
@@ -60,7 +58,6 @@ namespace sukiNES
 	, _currentAttribute(0)
 	, _tempBackgroundPattern(0)
 	{
-
 		_ppuControl.raw = 0;
 		_ppuMask.raw = 0;
 		_ppuStatus.raw = 0;
@@ -203,6 +200,7 @@ namespace sukiNES
 				if (!_skipNmi)
 				{
 					_ppuStatus.vblankStarted = true;
+					_irqNotRead = true;
 				}
 				else
 				{

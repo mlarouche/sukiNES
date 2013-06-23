@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClInclude Include="assert.h" />
     <ClInclude Include="cpu.h" />
+    <ClInclude Include="disassembler.h" />
     <ClInclude Include="gamepak.h" />
     <ClInclude Include="inesreader.h" />
     <ClInclude Include="inputio.h" />
@@ -34,6 +35,7 @@
   <ItemGroup>
     <ClCompile Include="assert.cpp" />
     <ClCompile Include="cpu.cpp" />
+    <ClCompile Include="disassembler.cpp" />
     <ClCompile Include="gamepak.cpp" />
     <ClCompile Include="inesreader.cpp" />
     <ClCompile Include="mainmemory.cpp" />

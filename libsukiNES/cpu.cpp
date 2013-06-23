@@ -1505,6 +1505,8 @@ namespace sukiNES
 				nmiVectorAddress.setHighByte(0xFF);
 				nmiVectorAddress.setLowByte(0xFA);
 				doIrq(nmiVectorAddress);
+
+				_nmiOccured = false;
 			}
 		}
 	}
@@ -1642,7 +1644,10 @@ namespace sukiNES
 		for(int i=0; i<3; i++)
 		{
 			_ppu->tick();
-			_nmiOccured = _ppu->hasVBlankOccured();
+			if ( _ppu->hasVBlankOccured())
+			{
+				_nmiOccured = true;
+			}
 		}
 
 		// TODO: Run APU tick

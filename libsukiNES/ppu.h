@@ -62,9 +62,17 @@ namespace sukiNES
 			_io = io;
 		}
 
-		bool hasVBlankOccured() const
+		bool hasVBlankOccured()
 		{
-			return (unsigned)_ppuControl.generateNmi && (unsigned)_ppuStatus.vblankStarted;
+			if (_irqNotRead && (unsigned)_ppuControl.generateNmi && (unsigned)_ppuStatus.vblankStarted)
+			{
+				_irqNotRead = false;
+				return true;
+			}
+			else
+			{
+				return false;
+			}
 		}
 
 		friend class PPUDebugInfoDialog;
@@ -198,6 +206,7 @@ namespace sukiNES
 		sint32 _currentScanline;
 		bool _isEvenFrame;
 		bool _skipNmi;
+		bool _irqNotRead;
 
 		byte _readBuffer;
 
