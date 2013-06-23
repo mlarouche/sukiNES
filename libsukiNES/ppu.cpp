@@ -40,6 +40,9 @@ namespace sukiNES
 		PpuData
 	};
 
+	static std::ofstream debugPpuFile;
+	static byte g_LastDataWrite;
+
 	PPU::PPU()
 	: _fineXScroll(0)
 	, _rawOAM(nullptr)
@@ -47,6 +50,7 @@ namespace sukiNES
 	, _cycleCountPerScanline(0)
 	, _currentScanline(PreRenderScanline)
 	, _isEvenFrame(true)
+	, _skipNmi(false)
 	, _firstWrite(true)
 	, _readBuffer(0xFF)
 	, _gamePak(nullptr)
@@ -56,6 +60,7 @@ namespace sukiNES
 	, _currentAttribute(0)
 	, _tempBackgroundPattern(0)
 	{
+
 		_ppuControl.raw = 0;
 		_ppuMask.raw = 0;
 		_ppuStatus.raw = 0;
@@ -81,6 +86,18 @@ namespace sukiNES
 			case PpuRegister::PpuStatus:
 			{
 				_firstWrite = true;
+				
+				if (_currentScanline == 241 && _cycleCountPerScanline == 0)
+				{
+					_ppuStatus.vblankStarted = false;
+					_skipNmi = true;
+				}
+				else if (_currentScanline == 241 && _cycleCountPerScanline == 1)
+				{
+					_ppuStatus.vblankStarted = true;
+					_skipNmi = true;
+				}
+				
 				auto ppuStatus = _ppuStatus.raw;
 				_ppuStatus.vblankStarted = false;
 				return ppuStatus;
@@ -183,8 +200,15 @@ namespace sukiNES
 			// In VBlank
 			if (_currentScanline == 241 && _cycleCountPerScanline == 1)
 			{
-				_ppuStatus.vblankStarted = true;
-				_isEvenFrame = !_isEvenFrame;
+				if (!_skipNmi)
+				{
+					_ppuStatus.vblankStarted = true;
+				}
+				else
+				{
+					_skipNmi = false;
+				}
+
 				if (_io && _isRenderingEnabled())
 				{
 					_io->onVBlank();
@@ -199,6 +223,7 @@ namespace sukiNES
 				{
 					++_cycleCountPerScanline;
 				}
+				_isEvenFrame = !_isEvenFrame;
 			}
 
 			if (_cycleCountPerScanline == 1)

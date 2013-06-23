@@ -197,6 +197,7 @@ namespace sukiNES
 		uint32 _cycleCountPerScanline;
 		sint32 _currentScanline;
 		bool _isEvenFrame;
+		bool _skipNmi;
 
 		byte _readBuffer;
 
