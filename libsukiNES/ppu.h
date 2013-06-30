@@ -100,6 +100,8 @@ namespace sukiNES
 		void _incrementPpuAddressOnReadWrite();
 
 		void _renderPixel();
+		void _renderBackground();
+		void _drawPixel(byte paletteValue);
 
 		enum class ReadSource
 		{

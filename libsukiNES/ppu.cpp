@@ -174,9 +174,9 @@ namespace sukiNES
 
 		if (_currentScanline >= 0 && _currentScanline < PostRenderScanline)
 		{
-			if (_isRenderingEnabled())
+			if (_cycleCountPerScanline >= 0 && _cycleCountPerScanline < 256)
 			{
-				if (_cycleCountPerScanline >= 0 && _cycleCountPerScanline < 256)
+				if (_isRenderingEnabled())
 				{
 					auto currentPixel = (_cycleCountPerScanline+_fineXScroll) & 7;
 					if (_cycleCountPerScanline == 0)
@@ -190,7 +190,14 @@ namespace sukiNES
 
 					_renderPixel();
 				}
+				else
+				{
+					_renderBackground();
+				}
+			}
 
+			if (_isRenderingEnabled())
+			{
 				_memoryAccess();
 			}
 		}
@@ -213,7 +220,7 @@ namespace sukiNES
 					_skipNmi = false;
 				}
 
-				if (_io && _isRenderingEnabled())
+				if (_io)
 				{
 					_io->onVBlank();
 				}
@@ -547,9 +554,37 @@ namespace sukiNES
 			paletteIndex.raw = 0;
 		}
 
+		if (!((unsigned)_ppuMask.showBackgroundLeftmost) && _cycleCountPerScanline < 8)
+		{
+			paletteIndex.raw = 0;
+		}
+
+		_drawPixel(_palette[paletteIndex.raw]);
+	}
+
+	void PPU::_renderBackground()
+	{
+		if (_currentPpuAddress.raw >= 0x3F00 && _currentPpuAddress.raw  < 0x4000)
+		{
+			auto temp = _internalRead(_currentPpuAddress.raw);
+			_drawPixel(temp);
+		}
+		else
+		{
+			_drawPixel(_palette[0]);
+		}
+	}
+
+	void PPU::_drawPixel(byte paletteValue)
+	{
 		if (_io)
 		{
-			_io->putPixel(_cycleCountPerScanline, _currentScanline, _palette[paletteIndex.raw]);
+			if ((unsigned)_ppuMask.greyscale)
+			{
+				paletteValue &= 0x30;
+			}
+
+			_io->putPixel(_cycleCountPerScanline, _currentScanline, paletteValue);
 		}
 	}
 
