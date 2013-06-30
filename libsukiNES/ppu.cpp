@@ -56,6 +56,7 @@ namespace sukiNES
 	, _lastReadNametableByte(0)
 	, _currentBackgroundPattern(0)
 	, _currentAttribute(0)
+	, _currentAttributeBits(0)
 	, _tempBackgroundPattern(0)
 	{
 		_ppuControl.raw = 0;
@@ -177,7 +178,12 @@ namespace sukiNES
 			{
 				if (_cycleCountPerScanline >= 0 && _cycleCountPerScanline < 256)
 				{
-					if (_cycleCountPerScanline % 8 == 0)
+					auto currentPixel = (_cycleCountPerScanline+_fineXScroll) & 7;
+					if (_cycleCountPerScanline == 0)
+					{
+						_prepareNextTile();
+					}
+					else if (currentPixel == 0)
 					{
 						_prepareNextTile();
 					}
@@ -306,6 +312,10 @@ namespace sukiNES
 				{
 					_backgroundPatternQueue.pop();
 				}
+				while(!_attributeBitsQueue.empty())
+				{
+					_attributeBitsQueue.pop();
+				}
 			}
 
 			auto whichAction = _cycleCountPerScanline % 8;
@@ -373,14 +383,19 @@ namespace sukiNES
 			| ((_currentPpuAddress.raw >> 4) & 0x38) // High 3 bits of Coarse Y (y/4)
 			| ((_currentPpuAddress.raw >> 2) & 0x07); // High 3 bits of Coarse X (x/4)
 		_backgroundAttributeQueue.push( _internalRead(attributeAddress) );
+
+		auto attributeX = (unsigned)_currentPpuAddress.coarseXScroll % 4;
+		auto attributeY = (unsigned)_currentPpuAddress.coarseYScroll % 4;
+		byte whichAttributeBits = (attributeX >> 1) | (attributeY & 2);
+
+		_attributeBitsQueue.push(whichAttributeBits);
 	}
 
 	void PPU::_lowBackgroundByteFetch()
 	{
 		_tempBackgroundPattern = 0;
 
-		uint16 chrAddress = 0;
-		chrAddress = ((unsigned)_ppuControl.backgroundPatternTable) * 0x1000;
+		uint16 chrAddress = ((unsigned)_ppuControl.backgroundPatternTable) * 0x1000;
 		chrAddress |= (_lastReadNametableByte * 16) + (unsigned)_currentPpuAddress.fineYScroll;
 
 		_tempBackgroundPattern.setLowByte( _internalRead(chrAddress) );
@@ -388,8 +403,7 @@ namespace sukiNES
 
 	void PPU::_highBackgroundByteFetch()
 	{
-		uint16 chrAddress = 0;
-		chrAddress = ((unsigned)_ppuControl.backgroundPatternTable) * 0x1000;
+		uint16 chrAddress = ((unsigned)_ppuControl.backgroundPatternTable) * 0x1000;
 		chrAddress |= (_lastReadNametableByte * 16) + 8 + (unsigned)_currentPpuAddress.fineYScroll;
 
 		_tempBackgroundPattern.setHighByte( _internalRead(chrAddress) );
@@ -409,6 +423,12 @@ namespace sukiNES
 		{
 			_currentAttribute = _backgroundAttributeQueue.front();
 			_backgroundAttributeQueue.pop();
+		}
+
+		if (!_attributeBitsQueue.empty())
+		{
+			_currentAttributeBits = _attributeBitsQueue.front();
+			_attributeBitsQueue.pop();
 		}
 	}
 
@@ -513,16 +533,12 @@ namespace sukiNES
 
 		paletteIndex.raw = 0;
 
-		uint32 column = 7 - (_cycleCountPerScanline % 8);
-		auto attributeX = _cycleCountPerScanline / 8;
-		auto attributeY = (unsigned)_currentPpuAddress.coarseYScroll;
-		byte whichAttribute = (((attributeX % 4) >= 2) ? 1 : 0)
-			+ (((attributeY % 4) >= 2) ? 2 : 0);
+		uint32 column = 7 - ((_cycleCountPerScanline+_fineXScroll) % 8);
 
 		paletteIndex.pixelTile = ((_currentBackgroundPattern.lowByte() >> column) & 0x1)
 			| (((_currentBackgroundPattern.highByte() >> column) & 0x1) << 1);
 
-		paletteIndex.paletteNumber = (_currentAttribute >> (whichAttribute * 2)) & 0x3;
+		paletteIndex.paletteNumber = (_currentAttribute >> (_currentAttributeBits * 2)) & 0x3;
 
 		paletteIndex.isSpritePalette = false;
 

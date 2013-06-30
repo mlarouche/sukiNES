@@ -219,11 +219,14 @@ namespace sukiNES
 		PPUIO* _io;
 
 		byte _lastReadNametableByte;
+		word _tempBackgroundPattern;
+
 		std::queue<uint16> _backgroundPatternQueue;
 		std::queue<byte> _backgroundAttributeQueue;
+		std::queue<byte> _attributeBitsQueue;
 
 		word _currentBackgroundPattern;
 		byte _currentAttribute;
-		word _tempBackgroundPattern;
+		byte _currentAttributeBits;
 	};
 }
