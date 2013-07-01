@@ -20,6 +20,8 @@ namespace sukiNES
 		virtual byte read(word address);
 		virtual void write(word address, byte value);
 
+		void powerOn();
+
 		void tick();
 
 		void forceCurrentScanline(sint32 value)
@@ -83,11 +85,14 @@ namespace sukiNES
 		bool _isOutsideRendering() const;
 
 		void _memoryAccess();
+		void _spriteEvaluation();
 
 		void _nametableFetch();
 		void _attributeFetch();
 		void _lowBackgroundByteFetch();
 		void _highBackgroundByteFetch();
+		void _lowSpriteByteFetch();
+		void _highSpriteByteFetch();
 
 		void _prepareNextTile();
 
@@ -177,6 +182,39 @@ namespace sukiNES
 		// Aka Loopy_X
 		byte _fineXScroll;
 
+		struct PPUPattern
+		{
+			PPUPattern()
+			: lowByte(0)
+			, highByte(0)
+			{}
+
+			byte lowByte;
+			byte highByte;
+
+			void clear()
+			{
+				lowByte = 0;
+				highByte = 0;
+			}
+
+			byte pixel(uint32 column) const
+			{
+				return ((lowByte >> column) & 0x1)
+					| (((highByte >> column) & 0x1) << 1);
+			}
+		};
+
+		union SpriteAttribute
+		{
+			byte raw;
+			RegBit<0, 2> palette;
+			RegBit<2, 3> unimplemented;
+			RegBit<5> priority;
+			RegBit<6> flipHorizontal;
+			RegBit<7> flipVertical;
+		};
+
 		struct OAMEntry
 		{
 			OAMEntry()
@@ -187,22 +225,83 @@ namespace sukiNES
 				attributes.raw = 0;
 			}
 
+			OAMEntry &operator=(const OAMEntry& other)
+			{
+				if (this != &other)
+				{
+					y = other.y;
+					tileIndex = other.tileIndex;
+					attributes = other.attributes;
+					x = other.x;
+				}
+
+				return *this;
+			}
+
+			bool isNull() const
+			{
+				return y == 0xFF
+					&& tileIndex == 0xFF
+					&& attributes.raw == 0xFF
+					&& x == 0xFF;
+			}
+
 			byte y;
 			byte tileIndex;
-			union
-			{
-				byte raw;
-				RegBit<0, 2> palette;
-				RegBit<2, 3> unimplemented;
-				RegBit<5> priority;
-				RegBit<6> flipHorizontal;
-				RegBit<7> flipVertical;
-			} attributes;
+			SpriteAttribute attributes;
 			byte x;
-		} _sprites[64];
+		} _sprites[64], _secondaryOAM[8];
+
+		struct SpriteRenderingEntry
+		{
+			SpriteRenderingEntry()
+			{
+				clear();
+			}
+
+			sint32 x;
+			SpriteAttribute attribute;
+			PPUPattern pattern;
+
+			void clear()
+			{
+				x = -1;
+				attribute.raw = 0;
+				pattern.clear();
+			}
+
+			byte pixel(sint32 screenX) const
+			{
+				auto column = 0;
+				if ((unsigned)attribute.flipHorizontal)
+				{
+					column = screenX - x;
+				}
+				else
+				{
+					column = 7 - (screenX - x);
+				}
+
+				return pattern.pixel(column);
+			}
+
+			bool inRange(sint32 screenX) const
+			{
+				if (x < 0)
+				{
+					return false;
+				}
+
+				auto range = screenX - x;
+				return range >= 0 && range < 8;
+			}
+
+		} _spritesToRender[8];
 
 		byte* _rawOAM;
+		byte* _rawSecondaryOAM;
 		byte _oamAddress;
+		byte _secondaryOAMIndex;
 
 		uint32 _cycleCountPerScanline;
 		sint32 _currentScanline;
@@ -221,14 +320,42 @@ namespace sukiNES
 		PPUIO* _io;
 
 		byte _lastReadNametableByte;
-		word _tempBackgroundPattern;
+		PPUPattern _tempBackgroundPattern;
 
-		std::queue<uint16> _backgroundPatternQueue;
+		std::queue<PPUPattern> _backgroundPatternQueue;
 		std::queue<byte> _backgroundAttributeQueue;
 		std::queue<byte> _attributeBitsQueue;
 
-		word _currentBackgroundPattern;
+		PPUPattern _currentBackgroundPattern;
 		byte _currentAttribute;
 		byte _currentAttributeBits;
+
+		struct SpriteEvaluation
+		{
+			enum CurrentState
+			{
+				CheckSpriteInRange,
+				GotoNextSprite,
+				CheckSpriteOverflow,
+				Done
+			} currentState;
+
+			byte spritesFound;
+			byte oamIndex;
+
+			SpriteEvaluation()
+			{
+				clear();
+			}
+
+			void clear()
+			{
+				currentState = CheckSpriteInRange;
+				spritesFound = 0;
+				oamIndex = 0;
+			}
+		} _spriteEval;
+
+		byte _currentSpriteFetched;
 	};
 }

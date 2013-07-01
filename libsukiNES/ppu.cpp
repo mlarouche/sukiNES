@@ -41,23 +41,22 @@ namespace sukiNES
 	};
 
 	PPU::PPU()
-	: _fineXScroll(0)
-	, _rawOAM(nullptr)
-	, _oamAddress(0)
-	, _cycleCountPerScanline(0)
-	, _currentScanline(PreRenderScanline)
-	, _isEvenFrame(true)
-	, _skipNmi(false)
-	, _irqNotRead(false)
-	, _firstWrite(true)
-	, _readBuffer(0xFF)
+	: _rawOAM(nullptr)
+	, _rawSecondaryOAM(nullptr)
 	, _gamePak(nullptr)
 	, _io(nullptr)
-	, _lastReadNametableByte(0)
-	, _currentBackgroundPattern(0)
-	, _currentAttribute(0)
-	, _currentAttributeBits(0)
-	, _tempBackgroundPattern(0)
+	{
+		_rawOAM = reinterpret_cast<byte*>(_sprites);
+		_rawSecondaryOAM = reinterpret_cast<byte*>(_secondaryOAM);
+
+		powerOn();
+	}
+
+	PPU::~PPU()
+	{
+	}
+
+	void PPU::powerOn()
 	{
 		_ppuControl.raw = 0;
 		_ppuMask.raw = 0;
@@ -65,14 +64,30 @@ namespace sukiNES
 		_temporaryPpuAddress.raw = 0;
 		_currentPpuAddress.raw = 0;
 
-		_rawOAM = reinterpret_cast<byte*>(_sprites);
+		_fineXScroll = 0;
+		_oamAddress = 0;
+		_secondaryOAMIndex = 0;
+		_cycleCountPerScanline = 0;
+		_currentScanline = PreRenderScanline;
+		_isEvenFrame = true;
+		_skipNmi = false;
+		_irqNotRead = false;
+		_firstWrite = true;
+		_readBuffer = 0xFF;
+		_lastReadNametableByte = 0;
+		_currentAttribute = 0;
+		_currentAttributeBits = 0;
+		_currentSpriteFetched = 0;
+
+		_spriteEval.clear();
+		for(uint32 i = 0; i < 8; ++i)
+		{
+			_spritesToRender[i].clear();
+		}
+
 		memcpy(_palette, PaletteAtPowerOn, sizeof(PaletteAtPowerOn) / sizeof(byte));
 
 		std::fill(std::begin(_nametable), std::end(_nametable), 0);
-	}
-
-	PPU::~PPU()
-	{
 	}
 
 	byte PPU::read(word address)
@@ -101,7 +116,17 @@ namespace sukiNES
 				return ppuStatus;
 			}
 			case PpuRegister::OamData:
-				return ((_oamAddress+1) % 3 == 0) ? _rawOAM[_oamAddress] & OamDataAttributeReadMask : _rawOAM[_oamAddress];
+				if (_isRenderingEnabled()
+					&& (_cycleCountPerScanline >= 1 && _cycleCountPerScanline <= 64)
+					&& (_currentScanline >= 0 && _currentScanline < PostRenderScanline)
+					)
+				{
+					return 0xFF;
+				}
+				else
+				{
+					return ((_oamAddress+1) % 3 == 0) ? _rawOAM[_oamAddress] & OamDataAttributeReadMask : _rawOAM[_oamAddress];
+				}
 			case PpuRegister::PpuData:
 				byte readValue = _internalRead(_currentPpuAddress.raw, PPU::ReadSource::FromRegister);
 				_incrementPpuAddressOnReadWrite();
@@ -262,8 +287,8 @@ namespace sukiNES
 		{
 			NametableFetch = 2,
 			AttributeFetch = 4,
-			LowBackgroundTileFetch = 6,
-			HighBackgroundTileFetch = 0
+			LowTileFetch = 6,
+			HighTileFetch = 0
 		};
 
 		if (_cycleCountPerScanline == 0)
@@ -271,6 +296,21 @@ namespace sukiNES
 		}
 		else if(_cycleCountPerScanline >= 1 && _cycleCountPerScanline < 256)
 		{
+			if (_cycleCountPerScanline >= 1 && _cycleCountPerScanline <= 64)
+			{
+				_rawSecondaryOAM[_secondaryOAMIndex] = 0xFF;
+				++_secondaryOAMIndex;
+				if (_secondaryOAMIndex > 32)
+				{
+					_secondaryOAMIndex = 0;
+					_spriteEval.oamIndex = _oamAddress / 4;
+				}
+			}
+			else
+			{
+				_spriteEvaluation();
+			}
+
 			auto whichAction = _cycleCountPerScanline % 8;
 			switch(whichAction)
 			{
@@ -280,10 +320,10 @@ namespace sukiNES
 				case MemoryAccessAction::AttributeFetch:
 					_attributeFetch();
 					break;
-				case MemoryAccessAction::LowBackgroundTileFetch:
+				case MemoryAccessAction::LowTileFetch:
 					_lowBackgroundByteFetch();
 					break;
-				case MemoryAccessAction::HighBackgroundTileFetch:
+				case MemoryAccessAction::HighTileFetch:
 					_highBackgroundByteFetch();
 
 					_incrementPpuAddressHorizontal();
@@ -294,18 +334,58 @@ namespace sukiNES
 		}
 		else if(_cycleCountPerScanline == 256)
 		{
+			_spriteEvaluation();
+
 			_highBackgroundByteFetch();
 
 			_incrementPpuAddressHorizontal();
 			_incrementPpuAddressVertical();
 		}
-		else if(_cycleCountPerScanline == 257)
+		else if(_cycleCountPerScanline >= 257 && _cycleCountPerScanline < 321)
 		{
-			_resetHorizontalPpuAddress();
-		}
-		else if(_cycleCountPerScanline >= 258 && _cycleCountPerScanline < 321)
-		{
-			
+			if (_cycleCountPerScanline == 257)
+			{
+				_resetHorizontalPpuAddress();
+
+				_spriteEval.clear();
+				_currentSpriteFetched = 0;
+				for (uint32 i = 0; i < 8; ++i)
+				{
+					_spritesToRender[i].clear();
+				}
+			}
+
+			_oamAddress = 0;
+
+			auto whichAction = _cycleCountPerScanline % 8;
+			switch(whichAction)
+			{
+				case MemoryAccessAction::NametableFetch:
+					{
+						if (!_secondaryOAM[_currentSpriteFetched].isNull())
+						{
+							_spritesToRender[_currentSpriteFetched].x = _secondaryOAM[_currentSpriteFetched].x;
+							_spritesToRender[_currentSpriteFetched].attribute = _secondaryOAM[_currentSpriteFetched].attributes;
+						}
+						break;
+					}
+				case MemoryAccessAction::LowTileFetch:
+					if (!_secondaryOAM[_currentSpriteFetched].isNull())
+					{
+						_lowSpriteByteFetch();
+					}
+					break;
+				case MemoryAccessAction::HighTileFetch:
+					if (!_secondaryOAM[_currentSpriteFetched].isNull())
+					{
+						_highSpriteByteFetch();
+
+						++_currentSpriteFetched;
+					}
+					break;
+				default:
+					break;
+			}
 		}
 		else if(_cycleCountPerScanline >= 321 && _cycleCountPerScanline < 337)
 		{
@@ -334,10 +414,10 @@ namespace sukiNES
 				case MemoryAccessAction::AttributeFetch:
 					_attributeFetch();
 					break;
-				case MemoryAccessAction::LowBackgroundTileFetch:
+				case MemoryAccessAction::LowTileFetch:
 					_lowBackgroundByteFetch();
 					break;
-				case MemoryAccessAction::HighBackgroundTileFetch:
+				case MemoryAccessAction::HighTileFetch:
 					_highBackgroundByteFetch();
 
 					_incrementPpuAddressHorizontal();
@@ -360,6 +440,72 @@ namespace sukiNES
 		}
 	}
 
+	void PPU::_spriteEvaluation()
+	{
+		auto spriteSize = (unsigned)_ppuControl.spriteSize ? 16 : 8;
+
+		switch(_spriteEval.currentState)
+		{
+		case SpriteEvaluation::CheckSpriteInRange:
+			{
+				byte y = _sprites[_spriteEval.oamIndex].y;
+				auto range = _currentScanline - y;
+				if (range >= 0 && range < spriteSize)
+				{
+					if (_spriteEval.spritesFound < 8)
+					{
+						_secondaryOAM[_spriteEval.spritesFound] = _sprites[_spriteEval.oamIndex];
+
+						++_spriteEval.spritesFound;
+					}
+				}
+				_spriteEval.currentState = SpriteEvaluation::GotoNextSprite;
+				break;
+			}
+		case SpriteEvaluation::GotoNextSprite:
+			{
+				++_spriteEval.oamIndex;
+				if (_spriteEval.oamIndex >= 64)
+				{
+					_spriteEval.oamIndex = 0;
+				}
+
+				if (_spriteEval.oamIndex == 0)
+				{
+					_spriteEval.currentState = SpriteEvaluation::Done;
+				}
+				else if (_spriteEval.spritesFound < 8)
+				{
+					_spriteEval.currentState = SpriteEvaluation::CheckSpriteInRange;
+				}
+				else if (_spriteEval.spritesFound == 8)
+				{
+					_spriteEval.currentState = SpriteEvaluation::CheckSpriteOverflow;
+				}
+				break;
+			}
+		case SpriteEvaluation::CheckSpriteOverflow:
+			{
+				byte y = _sprites[_spriteEval.oamIndex].y;
+				auto range = _currentScanline - y;
+				if (range >= 0 && range < spriteSize)
+				{
+					_ppuStatus.spriteOverflow = true;
+				}
+
+				++_spriteEval.oamIndex;
+				if (_spriteEval.oamIndex > 64)
+				{
+					_spriteEval.oamIndex = 0;
+					_spriteEval.currentState = SpriteEvaluation::Done;
+				}
+				break;
+			}
+		case SpriteEvaluation::Done:
+			break;
+		}
+	}
+
 	bool PPU::_isRenderingEnabled() const
 	{
 		return (unsigned)_ppuMask.showBackground || (unsigned)_ppuMask.showSprites;
@@ -367,7 +513,7 @@ namespace sukiNES
 
 	bool PPU::_isOutsideRendering() const
 	{
-		if ((_currentScanline >= 240 && _currentScanline <= 260) || (_currentScanline == -1))
+		if ((_currentScanline >= PostRenderScanline && _currentScanline <= ScanlinePerFrame) || (_currentScanline == PreRenderScanline))
 		{
 			return true;
 		}
@@ -400,12 +546,12 @@ namespace sukiNES
 
 	void PPU::_lowBackgroundByteFetch()
 	{
-		_tempBackgroundPattern = 0;
+		_tempBackgroundPattern.clear();
 
 		uint16 chrAddress = ((unsigned)_ppuControl.backgroundPatternTable) * 0x1000;
 		chrAddress |= (_lastReadNametableByte * 16) + (unsigned)_currentPpuAddress.fineYScroll;
 
-		_tempBackgroundPattern.setLowByte( _internalRead(chrAddress) );
+		_tempBackgroundPattern.lowByte = _internalRead(chrAddress);
 	}
 
 	void PPU::_highBackgroundByteFetch()
@@ -413,9 +559,73 @@ namespace sukiNES
 		uint16 chrAddress = ((unsigned)_ppuControl.backgroundPatternTable) * 0x1000;
 		chrAddress |= (_lastReadNametableByte * 16) + 8 + (unsigned)_currentPpuAddress.fineYScroll;
 
-		_tempBackgroundPattern.setHighByte( _internalRead(chrAddress) );
+		_tempBackgroundPattern.highByte = _internalRead(chrAddress);
 
-		_backgroundPatternQueue.push( (uint16)_tempBackgroundPattern );
+		_backgroundPatternQueue.push(_tempBackgroundPattern);
+	}
+
+	void PPU::_lowSpriteByteFetch()
+	{
+		auto spriteSize = (unsigned)_ppuControl.spriteSize ? 16 : 8;
+
+		byte bank = 0;
+		byte tileNumber = 0;
+
+		if (spriteSize == 16)
+		{
+			bank = _secondaryOAM[_currentSpriteFetched].tileIndex & 1;
+			tileNumber = (_secondaryOAM[_currentSpriteFetched].tileIndex & 0xFE) >> 1;
+		}
+		else
+		{
+			bank = (unsigned)_ppuControl.spritePatternTable;
+			tileNumber = _secondaryOAM[_currentSpriteFetched].tileIndex;
+		}
+
+		auto fineY = 0;
+		if ((unsigned)_secondaryOAM[_currentSpriteFetched].attributes.flipVertical)
+		{
+			fineY = (spriteSize-1) - (_currentScanline - _secondaryOAM[_currentSpriteFetched].y);
+		}
+		else
+		{
+			fineY = _currentScanline - _secondaryOAM[_currentSpriteFetched].y;
+		}
+
+		uint16 chrAddress = bank*0x1000 + tileNumber*16 + fineY;
+		_spritesToRender[_currentSpriteFetched].pattern.lowByte = _internalRead(chrAddress);
+	}
+
+	void PPU::_highSpriteByteFetch()
+	{
+		auto spriteSize = (unsigned)_ppuControl.spriteSize ? 16 : 8;
+
+		byte bank = 0;
+		byte tileNumber = 0;
+
+		if (spriteSize == 16)
+		{
+			bank = _secondaryOAM[_currentSpriteFetched].tileIndex & 1;
+			tileNumber = (_secondaryOAM[_currentSpriteFetched].tileIndex & 0xFE) >> 1;
+		}
+		else
+		{
+			bank = (unsigned)_ppuControl.spritePatternTable;
+			tileNumber = _secondaryOAM[_currentSpriteFetched].tileIndex;
+		}
+
+		auto fineY = 0;
+		if ((unsigned)_secondaryOAM[_currentSpriteFetched].attributes.flipVertical)
+		{
+			fineY = (spriteSize-1) - (_currentScanline - _secondaryOAM[_currentSpriteFetched].y);
+		}
+		else
+		{
+			fineY = _currentScanline - _secondaryOAM[_currentSpriteFetched].y;
+		}
+
+		uint16 chrAddress = bank*0x1000 + tileNumber*16 + 8 + fineY;
+		_spritesToRender[_currentSpriteFetched].pattern.highByte = _internalRead(chrAddress);
 	}
 
 	void PPU::_prepareNextTile()
@@ -540,21 +750,72 @@ namespace sukiNES
 
 		paletteIndex.raw = 0;
 
-		uint32 column = 7 - ((_cycleCountPerScanline+_fineXScroll) % 8);
+		bool renderSprite = false;
+		byte backgroundPixel = 0;
+		byte backgroundAttribute = 0;
+		byte spritePixel = 0;
+		byte spriteAttribute = 0;
 
-		paletteIndex.pixelTile = ((_currentBackgroundPattern.lowByte() >> column) & 0x1)
-			| (((_currentBackgroundPattern.highByte() >> column) & 0x1) << 1);
-
-		paletteIndex.paletteNumber = (_currentAttribute >> (_currentAttributeBits * 2)) & 0x3;
-
-		paletteIndex.isSpritePalette = false;
-
-		if ( !((paletteIndex.raw & 0x1F) & 0x3) )
+		if ((unsigned)_ppuMask.showBackground)
 		{
-			paletteIndex.raw = 0;
+			uint32 backgroundColumn = 7 - ((_cycleCountPerScanline+_fineXScroll) % 8);
+			backgroundPixel = _currentBackgroundPattern.pixel(backgroundColumn);
+			backgroundAttribute = (_currentAttribute >> (_currentAttributeBits * 2)) & 0x3;
 		}
 
-		if (!((unsigned)_ppuMask.showBackgroundLeftmost) && _cycleCountPerScanline < 8)
+		if ((unsigned)_ppuMask.showSprites)
+		{
+			if (!((unsigned)_ppuMask.showSpritesLeftmost) && _cycleCountPerScanline < 8)
+			{
+			}
+			else
+			{
+				for (uint32 spriteIndex = 0; spriteIndex < 8; ++spriteIndex)
+				{
+					if (_spritesToRender[spriteIndex].inRange(_cycleCountPerScanline))
+					{
+						spritePixel = _spritesToRender[spriteIndex].pixel(_cycleCountPerScanline);
+						spriteAttribute = (unsigned)_spritesToRender[spriteIndex].attribute.palette;
+
+						if (backgroundPixel > 0 && spritePixel > 0 && _cycleCountPerScanline < 255)
+						{
+							_ppuStatus.sprite0Hit = true;
+						}
+
+						if (backgroundPixel == 0 && spritePixel > 0)
+						{
+							renderSprite = true;
+							break;
+						}
+						if (backgroundPixel > 0 && spritePixel > 0 && !(unsigned)_spritesToRender[spriteIndex].attribute.priority)
+						{
+							renderSprite = true;
+							break;
+						}
+					}
+				}
+			}
+		}
+
+		if (renderSprite)
+		{
+			paletteIndex.pixelTile = spritePixel;
+			paletteIndex.paletteNumber = spriteAttribute;
+		}
+		else if ((unsigned)_ppuMask.showBackground)
+		{
+			paletteIndex.pixelTile = backgroundPixel;
+			paletteIndex.paletteNumber = backgroundAttribute;
+
+			if (!((unsigned)_ppuMask.showBackgroundLeftmost) && _cycleCountPerScanline < 8)
+			{
+				paletteIndex.raw = 0;
+			}
+		}
+
+		paletteIndex.isSpritePalette = renderSprite;
+
+		if ( !((paletteIndex.raw & 0x1F) & 0x3) )
 		{
 			paletteIndex.raw = 0;
 		}

@@ -1461,6 +1461,8 @@ namespace sukiNES
 		_registers.ProcessorStatus.raw = 0;
 		_registers.ProcessorStatus.Unused = true;
 
+		_ppu->powerOn();
+
 		reset();
 	}
 
