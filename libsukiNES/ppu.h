@@ -81,6 +81,14 @@ namespace sukiNES
 		friend class PPUVideoDialog;
 
 	private:
+		enum class MemoryAccessAction
+		{
+			NametableFetch = 2,
+			AttributeFetch = 4,
+			LowTileFetch = 6,
+			HighTileFetch = 0
+		};
+
 		bool _isRenderingEnabled() const;
 		bool _isOutsideRendering() const;
 
@@ -89,10 +97,9 @@ namespace sukiNES
 
 		void _nametableFetch();
 		void _attributeFetch();
-		void _lowBackgroundByteFetch();
-		void _highBackgroundByteFetch();
-		void _lowSpriteByteFetch();
-		void _highSpriteByteFetch();
+		void _backgroundByteFetch(MemoryAccessAction memoryAccess);
+		void _spriteByteFetch(MemoryAccessAction memoryAccess);
+		byte _readTile(byte patternBank, byte tileNumber, byte fineY, MemoryAccessAction memoryAccess);
 
 		void _prepareNextTile();
 
@@ -263,11 +270,14 @@ namespace sukiNES
 			SpriteAttribute attribute;
 			PPUPattern pattern;
 
+			byte isFirstSprite;
+
 			void clear()
 			{
 				x = -1;
 				attribute.raw = 0;
 				pattern.clear();
+				isFirstSprite = false;
 			}
 
 			byte pixel(sint32 screenX) const

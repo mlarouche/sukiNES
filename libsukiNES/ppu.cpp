@@ -283,14 +283,6 @@ namespace sukiNES
 
 	void PPU::_memoryAccess()
 	{
-		enum class MemoryAccessAction
-		{
-			NametableFetch = 2,
-			AttributeFetch = 4,
-			LowTileFetch = 6,
-			HighTileFetch = 0
-		};
-
 		if (_cycleCountPerScanline == 0)
 		{
 		}
@@ -311,7 +303,7 @@ namespace sukiNES
 				_spriteEvaluation();
 			}
 
-			auto whichAction = _cycleCountPerScanline % 8;
+			auto whichAction = static_cast<PPU::MemoryAccessAction>(_cycleCountPerScanline % 8);
 			switch(whichAction)
 			{
 				case MemoryAccessAction::NametableFetch:
@@ -321,10 +313,10 @@ namespace sukiNES
 					_attributeFetch();
 					break;
 				case MemoryAccessAction::LowTileFetch:
-					_lowBackgroundByteFetch();
+					_backgroundByteFetch(whichAction);
 					break;
 				case MemoryAccessAction::HighTileFetch:
-					_highBackgroundByteFetch();
+					_backgroundByteFetch(whichAction);
 
 					_incrementPpuAddressHorizontal();
 					break;
@@ -336,7 +328,7 @@ namespace sukiNES
 		{
 			_spriteEvaluation();
 
-			_highBackgroundByteFetch();
+			_backgroundByteFetch(MemoryAccessAction::HighTileFetch);
 
 			_incrementPpuAddressHorizontal();
 			_incrementPpuAddressVertical();
@@ -357,7 +349,7 @@ namespace sukiNES
 
 			_oamAddress = 0;
 
-			auto whichAction = _cycleCountPerScanline % 8;
+			auto whichAction = static_cast<PPU::MemoryAccessAction>(_cycleCountPerScanline % 8);
 			switch(whichAction)
 			{
 				case MemoryAccessAction::NametableFetch:
@@ -366,19 +358,20 @@ namespace sukiNES
 						{
 							_spritesToRender[_currentSpriteFetched].x = _secondaryOAM[_currentSpriteFetched].x;
 							_spritesToRender[_currentSpriteFetched].attribute = _secondaryOAM[_currentSpriteFetched].attributes;
+							_spritesToRender[_currentSpriteFetched].isFirstSprite = (unsigned)_secondaryOAM[_currentSpriteFetched].attributes.unimplemented;
 						}
 						break;
 					}
 				case MemoryAccessAction::LowTileFetch:
 					if (!_secondaryOAM[_currentSpriteFetched].isNull())
 					{
-						_lowSpriteByteFetch();
+						_spriteByteFetch(whichAction);
 					}
 					break;
 				case MemoryAccessAction::HighTileFetch:
 					if (!_secondaryOAM[_currentSpriteFetched].isNull())
 					{
-						_highSpriteByteFetch();
+						_spriteByteFetch(whichAction);
 
 						++_currentSpriteFetched;
 					}
@@ -415,10 +408,10 @@ namespace sukiNES
 					_attributeFetch();
 					break;
 				case MemoryAccessAction::LowTileFetch:
-					_lowBackgroundByteFetch();
+					_backgroundByteFetch(MemoryAccessAction::LowTileFetch);
 					break;
 				case MemoryAccessAction::HighTileFetch:
-					_highBackgroundByteFetch();
+					_backgroundByteFetch(MemoryAccessAction::HighTileFetch);
 
 					_incrementPpuAddressHorizontal();
 					break;
@@ -455,6 +448,7 @@ namespace sukiNES
 					if (_spriteEval.spritesFound < 8)
 					{
 						_secondaryOAM[_spriteEval.spritesFound] = _sprites[_spriteEval.oamIndex];
+						_secondaryOAM[_spriteEval.spritesFound].attributes.unimplemented = static_cast<byte>((_spriteEval.oamIndex == 0));
 
 						++_spriteEval.spritesFound;
 					}
@@ -544,37 +538,49 @@ namespace sukiNES
 		_attributeBitsQueue.push(whichAttributeBits);
 	}
 
-	void PPU::_lowBackgroundByteFetch()
+	void PPU::_backgroundByteFetch(PPU::MemoryAccessAction memoryAccess)
 	{
-		_tempBackgroundPattern.clear();
+		byte readTile = _readTile((unsigned)_ppuControl.backgroundPatternTable, _lastReadNametableByte, (unsigned)_currentPpuAddress.fineYScroll, memoryAccess);
 
-		uint16 chrAddress = ((unsigned)_ppuControl.backgroundPatternTable) * 0x1000;
-		chrAddress |= (_lastReadNametableByte * 16) + (unsigned)_currentPpuAddress.fineYScroll;
+		switch(memoryAccess)
+		{
+		case MemoryAccessAction::LowTileFetch:
+			_tempBackgroundPattern.lowByte = readTile;
+			break;
+		case MemoryAccessAction::HighTileFetch:
+			_tempBackgroundPattern.highByte = readTile;
 
-		_tempBackgroundPattern.lowByte = _internalRead(chrAddress);
+			_backgroundPatternQueue.push(_tempBackgroundPattern);
+			break;
+		default:
+			break;
+		}
 	}
 
-	void PPU::_highBackgroundByteFetch()
-	{
-		uint16 chrAddress = ((unsigned)_ppuControl.backgroundPatternTable) * 0x1000;
-		chrAddress |= (_lastReadNametableByte * 16) + 8 + (unsigned)_currentPpuAddress.fineYScroll;
-
-		_tempBackgroundPattern.highByte = _internalRead(chrAddress);
-
-		_backgroundPatternQueue.push(_tempBackgroundPattern);
-	}
-
-	void PPU::_lowSpriteByteFetch()
+	void PPU::_spriteByteFetch(PPU::MemoryAccessAction memoryAccess)
 	{
 		auto spriteSize = (unsigned)_ppuControl.spriteSize ? 16 : 8;
 
 		byte bank = 0;
 		byte tileNumber = 0;
 
+		byte fineY = _currentScanline - _secondaryOAM[_currentSpriteFetched].y;
+		if ((unsigned)_secondaryOAM[_currentSpriteFetched].attributes.flipVertical)
+		{
+			fineY ^= 0xF;
+		}
+
 		if (spriteSize == 16)
 		{
 			bank = _secondaryOAM[_currentSpriteFetched].tileIndex & 1;
-			tileNumber = (_secondaryOAM[_currentSpriteFetched].tileIndex & 0xFE) >> 1;
+			tileNumber = (_secondaryOAM[_currentSpriteFetched].tileIndex & 0xFE);
+
+			if (fineY & 8)
+			{
+				tileNumber++;
+			}
+
+			fineY &= 7;
 		}
 		else
 		{
@@ -582,50 +588,27 @@ namespace sukiNES
 			tileNumber = _secondaryOAM[_currentSpriteFetched].tileIndex;
 		}
 
-		auto fineY = 0;
-		if ((unsigned)_secondaryOAM[_currentSpriteFetched].attributes.flipVertical)
+		byte readTile = _readTile(bank, tileNumber, fineY, memoryAccess);
+		switch(memoryAccess)
 		{
-			fineY = (spriteSize-1) - (_currentScanline - _secondaryOAM[_currentSpriteFetched].y);
+		case MemoryAccessAction::LowTileFetch:
+			_spritesToRender[_currentSpriteFetched].pattern.lowByte = readTile;
+			break;
+		case MemoryAccessAction::HighTileFetch:
+			_spritesToRender[_currentSpriteFetched].pattern.highByte = readTile;
+			break;
+		default:
+			break;
 		}
-		else
-		{
-			fineY = _currentScanline - _secondaryOAM[_currentSpriteFetched].y;
-		}
-
-		uint16 chrAddress = bank*0x1000 + tileNumber*16 + fineY;
-		_spritesToRender[_currentSpriteFetched].pattern.lowByte = _internalRead(chrAddress);
 	}
 
-	void PPU::_highSpriteByteFetch()
+	byte PPU::_readTile(byte patternBank, byte tileNumber, byte fineY, PPU::MemoryAccessAction memoryAccess)
 	{
-		auto spriteSize = (unsigned)_ppuControl.spriteSize ? 16 : 8;
+		byte highTileOffset = (memoryAccess == MemoryAccessAction::HighTileFetch) ? 8 : 0;
 
-		byte bank = 0;
-		byte tileNumber = 0;
+		uint16 chrAddress = patternBank*0x1000 | (tileNumber*16 + fineY + highTileOffset);
 
-		if (spriteSize == 16)
-		{
-			bank = _secondaryOAM[_currentSpriteFetched].tileIndex & 1;
-			tileNumber = (_secondaryOAM[_currentSpriteFetched].tileIndex & 0xFE) >> 1;
-		}
-		else
-		{
-			bank = (unsigned)_ppuControl.spritePatternTable;
-			tileNumber = _secondaryOAM[_currentSpriteFetched].tileIndex;
-		}
-
-		auto fineY = 0;
-		if ((unsigned)_secondaryOAM[_currentSpriteFetched].attributes.flipVertical)
-		{
-			fineY = (spriteSize-1) - (_currentScanline - _secondaryOAM[_currentSpriteFetched].y);
-		}
-		else
-		{
-			fineY = _currentScanline - _secondaryOAM[_currentSpriteFetched].y;
-		}
-
-		uint16 chrAddress = bank*0x1000 + tileNumber*16 + 8 + fineY;
-		_spritesToRender[_currentSpriteFetched].pattern.highByte = _internalRead(chrAddress);
+		return _internalRead(chrAddress);
 	}
 
 	void PPU::_prepareNextTile()
@@ -777,7 +760,11 @@ namespace sukiNES
 						spritePixel = _spritesToRender[spriteIndex].pixel(_cycleCountPerScanline);
 						spriteAttribute = (unsigned)_spritesToRender[spriteIndex].attribute.palette;
 
-						if (backgroundPixel > 0 && spritePixel > 0 && _cycleCountPerScanline < 255)
+						if (_spritesToRender[spriteIndex].isFirstSprite
+							&& backgroundPixel > 0
+							&& spritePixel > 0
+							&& _cycleCountPerScanline < 255
+							&& (unsigned)_ppuMask.showBackground)
 						{
 							_ppuStatus.sprite0Hit = true;
 						}
