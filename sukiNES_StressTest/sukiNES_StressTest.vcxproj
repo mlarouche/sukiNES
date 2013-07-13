@@ -147,12 +147,18 @@
     <ClCompile Include="blagg_palette_ram.cpp" />
     <ClCompile Include="blagg_power_up_palette.cpp" />
     <ClCompile Include="blagg_sprite_ram.cpp" />
-    <ClCompile Include="blagg_vbl_clear_time.cpp" />
     <ClCompile Include="blagg_vram_access.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="nestest.cpp" />
     <ClCompile Include="test.cpp" />
     <ClCompile Include="testrunner.cpp" />
+    <ClCompile Include="vbl_nmi_1_frame_basics.cpp" />
+    <ClCompile Include="vbl_nmi_2_vbl_timing.cpp" />
+    <ClCompile Include="vbl_nmi_3_even_odd_frames.cpp" />
+    <ClCompile Include="vbl_nmi_4_vbl_clear_timing.cpp" />
+    <ClCompile Include="vbl_nmi_5_nmi_suppression.cpp" />
+    <ClCompile Include="vbl_nmi_6_nmi_disable.cpp" />
+    <ClCompile Include="vbl_nmi_7_nmi_timing.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="blaggtestrombase.h" />

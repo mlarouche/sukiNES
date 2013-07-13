@@ -11,6 +11,12 @@
     <Filter Include="Tests">
       <UniqueIdentifier>{63cf588a-dd64-41d4-b5d3-7cadf3ce5350}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Tests\vbl_nmi_timing">
+      <UniqueIdentifier>{4a1feed9-0f1b-4a64-859d-f06080a95897}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Tests\blagg_ppu_tests">
+      <UniqueIdentifier>{5658bd04-fafc-4e7d-8663-7295d4f255b4}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -25,23 +31,41 @@
     <ClCompile Include="nestest.cpp">
       <Filter>Tests</Filter>
     </ClCompile>
-    <ClCompile Include="blagg_palette_ram.cpp">
-      <Filter>Tests</Filter>
-    </ClCompile>
     <ClCompile Include="blaggtestrombase.cpp">
       <Filter>Tests</Filter>
     </ClCompile>
-    <ClCompile Include="blagg_power_up_palette.cpp">
-      <Filter>Tests</Filter>
+    <ClCompile Include="vbl_nmi_1_frame_basics.cpp">
+      <Filter>Tests\vbl_nmi_timing</Filter>
     </ClCompile>
-    <ClCompile Include="blagg_vram_access.cpp">
-      <Filter>Tests</Filter>
+    <ClCompile Include="vbl_nmi_2_vbl_timing.cpp">
+      <Filter>Tests\vbl_nmi_timing</Filter>
+    </ClCompile>
+    <ClCompile Include="vbl_nmi_3_even_odd_frames.cpp">
+      <Filter>Tests\vbl_nmi_timing</Filter>
+    </ClCompile>
+    <ClCompile Include="vbl_nmi_4_vbl_clear_timing.cpp">
+      <Filter>Tests\vbl_nmi_timing</Filter>
+    </ClCompile>
+    <ClCompile Include="vbl_nmi_5_nmi_suppression.cpp">
+      <Filter>Tests\vbl_nmi_timing</Filter>
+    </ClCompile>
+    <ClCompile Include="vbl_nmi_6_nmi_disable.cpp">
+      <Filter>Tests\vbl_nmi_timing</Filter>
+    </ClCompile>
+    <ClCompile Include="vbl_nmi_7_nmi_timing.cpp">
+      <Filter>Tests\vbl_nmi_timing</Filter>
+    </ClCompile>
+    <ClCompile Include="blagg_palette_ram.cpp">
+      <Filter>Tests\blagg_ppu_tests</Filter>
+    </ClCompile>
+    <ClCompile Include="blagg_power_up_palette.cpp">
+      <Filter>Tests\blagg_ppu_tests</Filter>
     </ClCompile>
     <ClCompile Include="blagg_sprite_ram.cpp">
-      <Filter>Tests</Filter>
+      <Filter>Tests\blagg_ppu_tests</Filter>
     </ClCompile>
-    <ClCompile Include="blagg_vbl_clear_time.cpp">
-      <Filter>Tests</Filter>
+    <ClCompile Include="blagg_vram_access.cpp">
+      <Filter>Tests\blagg_ppu_tests</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
