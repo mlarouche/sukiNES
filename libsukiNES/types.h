@@ -280,6 +280,9 @@ public:
 	{
 		if (this != &other)
 		{
+			delete[] _data;
+			_data = nullptr;
+
 			_data = other._data;
 			_size = other._size;
 
