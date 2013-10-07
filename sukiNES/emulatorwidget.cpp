@@ -8,7 +8,12 @@
 
 #include "nespalette.h"
 
+#ifdef SUKINES_DEBUG
+static const uint32 ScalingFactor = 1;
+#else
 static const uint32 ScalingFactor = 3;
+#endif
+
 static const uint32 ScreenWidth = 256*ScalingFactor;
 static const uint32 ScreenHeight = 240*ScalingFactor;
 

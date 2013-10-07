@@ -579,14 +579,14 @@ namespace sukiNES
 			{
 				tileNumber++;
 			}
-
-			fineY &= 7;
 		}
 		else
 		{
 			bank = (unsigned)_ppuControl.spritePatternTable;
 			tileNumber = _secondaryOAM[_currentSpriteFetched].tileIndex;
 		}
+
+		fineY &= 7;
 
 		byte readTile = _readTile(bank, tileNumber, fineY, memoryAccess);
 		switch(memoryAccess)
