@@ -126,13 +126,13 @@ namespace sukiNES
 		_gamePak->setRomData(std::move(romData));
 
 		// Read CHR pages
-		uint32 chrDataSize = chrPageCount * ChrBankSize;
-		DynamicArray<byte> chrData(chrDataSize);
-
-		file.read(chrData.get(), sizeof(byte), chrDataSize);
-
 		if (chrPageCount > 0)
 		{
+			uint32 chrDataSize = chrPageCount * ChrBankSize;
+			DynamicArray<byte> chrData(chrDataSize);
+
+			file.read(chrData.get(), sizeof(byte), chrDataSize);
+
 			_gamePak->setChrData(std::move(chrData));
 		}
 
