@@ -3,6 +3,7 @@
 namespace sukiNES
 {
 	class GamePak;
+	class Mapper;
 	class PPU;
 
 	class iNESReader
@@ -22,6 +23,9 @@ namespace sukiNES
 		{
 			_ppu = ppu;
 		}
+
+	private:
+		Mapper* createMapper(uint32 mapperNumber) const;
 
 	private:
 		GamePak* _gamePak;

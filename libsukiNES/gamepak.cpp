@@ -1,5 +1,8 @@
 #include "gamepak.h"
 
+// Local includes
+#include "mapper.h"
+
 namespace sukiNES
 {
 	static const uint32 GamePakBaseAddress = 0x8000;
@@ -9,7 +12,8 @@ namespace sukiNES
 	, _chrBank(nullptr)
 	, _mirroring(0)
 	, _hasSaveRam(false)
-	, _mapper(0)
+	, _mapperNumber(0)
+	, _mapper(nullptr)
 	{
 		_chrBank = _chrData.get();
 		memset(_chrBank, 0, ChrBankSize);
@@ -34,7 +38,7 @@ namespace sukiNES
 		else
 		{
 			_romBank[0] = _romData.get();
-			_romBank[1] = _romData.get() + RomBankSize;
+			_romBank[1] = _romData.get() + ((romPageCount()-1) * RomBankSize);
 		}
 	}
 
@@ -49,6 +53,10 @@ namespace sukiNES
 
 	void GamePak::write(word address, byte value)
 	{
+		if (_mapper)
+		{
+			_mapper->write(address, value);
+		}
 	}
 
 	byte GamePak::readChr(word address)
@@ -59,5 +67,10 @@ namespace sukiNES
 	void GamePak::writeChr(word address, byte value)
 	{
 		_chrBank[address] = value;
+	}
+
+	void GamePak::changeBank(Bank whichBank, byte value)
+	{
+		_romBank[static_cast<size_t>(whichBank)] = _romData.get() + (value*RomBankSize);
 	}
 }

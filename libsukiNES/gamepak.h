@@ -11,9 +11,17 @@ namespace sukiNES
 	static const uint32 RomBankSize = SUKINES_KB(16);
 	static const uint32 ChrBankSize = SUKINES_KB(8);
 
+	class Mapper;
+
 	class GamePak : public IMemory
 	{
 	public:
+		enum class Bank
+		{
+			LowerBank, /// $8000-BFFF
+			UpperBank /// $C000-FFFF
+		};
+
 		GamePak();
 		~GamePak();
 
@@ -35,6 +43,8 @@ namespace sukiNES
 			_chrData = std::forward<DynamicArray<byte>>(chrData);
 			_chrBank = _chrData.get();
 		}
+
+		void changeBank(Bank whichBank, byte value);
 
 		bool hasSaveRam() const
 		{
@@ -66,12 +76,17 @@ namespace sukiNES
 			return _chrData.size() / ChrBankSize;
 		}
 
-		uint32 mapper() const
+		uint32 mapperNumber() const
 		{
-			return _mapper;
+			return _mapperNumber;
 		}
 
-		void setMapper(uint32 mapper)
+		void setMapperNumber(uint32 mapperNumber)
+		{
+			_mapperNumber = mapperNumber;
+		}
+
+		void setMapper(Mapper* mapper)
 		{
 			_mapper = mapper;
 		}
@@ -85,6 +100,8 @@ namespace sukiNES
 
 		byte _mirroring;
 		bool _hasSaveRam;
-		uint32 _mapper;
+		uint32 _mapperNumber;
+
+		Mapper* _mapper;
 	};
 }

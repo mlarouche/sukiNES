@@ -51,6 +51,12 @@
     <ClInclude Include="disassembler.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="mapper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="unrom_mapper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cpu.cpp">
@@ -75,6 +81,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="disassembler.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="unrom_mapper.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="mapper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -7,7 +7,11 @@
 // Local includes
 #include "assert.h"
 #include "gamepak.h"
+#include "mapper.h"
 #include "ppu.h"
+
+// Mappers
+#include "unrom_mapper.h"
 
 static const char iNESHeader[] = "NES\x1a";
 
@@ -97,11 +101,10 @@ namespace sukiNES
 			file.getc();
 		}
 
-		uint32 mapper = ((controlByte1 & 0xF0) << 4) | (controlByte2 & 0xF0);
+		uint32 mapperNumber = (controlByte2 & 0xF0) | ((controlByte1 & 0xF0) >> 4);
 
-		_gamePak->setMapper(mapper);
-
-		// TODO: Map mapper number to board type
+		_gamePak->setMapperNumber(mapperNumber);
+		_gamePak->setMapper(createMapper(mapperNumber));
 
 		byte mirroring;
 
@@ -142,5 +145,21 @@ namespace sukiNES
 		}
 
 		return true;
+	}
+	
+	Mapper* iNESReader::createMapper(uint32 mapperNumber) const
+	{
+		Mapper* mapper = nullptr;
+
+		switch(mapperNumber)
+		{
+		case 2:
+			mapper = new UnromMapper(_gamePak);
+			break;
+		default:
+			break;
+		}
+
+		return mapper;
 	}
 }

@@ -57,7 +57,7 @@ public:
 			return false;
 		}
 
-		assertIsEqual(_gamePak.mapper(), 0, "Mapper not equal");
+		assertIsEqual(_gamePak.mapperNumber(), 0, "Mapper not equal");
 		assertIsEqual(_gamePak.romPageCount(), 1, "ROM page count not equal");
 		assertIsEqual(_gamePak.chrPageCount(), 1, "CHR page count not equal");
 

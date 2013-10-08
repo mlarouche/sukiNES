@@ -26,11 +26,13 @@
     <ClInclude Include="inesreader.h" />
     <ClInclude Include="inputio.h" />
     <ClInclude Include="mainmemory.h" />
+    <ClInclude Include="mapper.h" />
     <ClInclude Include="memory.h" />
     <ClInclude Include="platform_support.h" />
     <ClInclude Include="ppu.h" />
     <ClInclude Include="ppuio.h" />
     <ClInclude Include="types.h" />
+    <ClInclude Include="unrom_mapper.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="assert.cpp" />
@@ -39,8 +41,10 @@
     <ClCompile Include="gamepak.cpp" />
     <ClCompile Include="inesreader.cpp" />
     <ClCompile Include="mainmemory.cpp" />
+    <ClCompile Include="mapper.cpp" />
     <ClCompile Include="ppu.cpp" />
     <ClCompile Include="types.cpp" />
+    <ClCompile Include="unrom_mapper.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{292C250A-C2FC-4E1F-8920-47804F6DA989}</ProjectGuid>
